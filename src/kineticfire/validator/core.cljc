@@ -21,37 +21,42 @@
   (:gen-class))
 
 
-(def ^:const string-min 0)
-(def ^:const string-max Integer/MAX_VALUE)
-(def ^:const string-nil-ok false)
-
-
-(defn- val1-if-not-nil-else-val2
-  [val1 val2]
-  (if (nil? val1)
-    val2
-    val1))
-
-
 (defn valid-string?
-  [data settings]
-  (let [{:keys [min-in max-in nil-ok-in pattern fn]} settings
-        min (val1-if-not-nil-else-val2 min-in string-min)
-        max (val1-if-not-nil-else-val2 max-in string-max)
-        nil-ok (val1-if-not-nil-else-val2 nil-ok-in string-nil-ok)]
-    (if (nil? data)
-      (if nil-ok
-        true
-        false)
-      (if-not (string? data)
-        false
-        (let [length (count data)]
-          (if (< length min)
-            false
-            (if (> length max)
-              false
-              true)))))
-    ))
+  ([s]
+   (valid-string? s false {}))
+  ([s err]
+   (valid-string? s err {}))
+  ([s err settings]
+   (if (nil? s)
+     (if (:nil-ok settings)
+       true
+       err)
+     (if-not (string? s)
+       err
+       (let [length (if (or
+                          (:min settings)
+                          (:max settings))
+                      (count s)
+                      -1)
+             min-valid (if (and
+                             (> length -1)
+                             (:min settings)
+                             (< length (:min settings)))
+                         false
+                         true)]
+         (if-not min-valid
+           err
+           (let [max-valid (if (and
+                                 (> length -1)
+                                 (:max settings)
+                                 (> length (:max settings)))
+                             false
+                             true)]
+             (if-not max-valid
+               err
+               true))))))))
+;; todo pat-or-pats-whole, pat-or-pats-sub
+;; todo fn-or-fns
 
 
 
