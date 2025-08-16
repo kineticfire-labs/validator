@@ -1,0 +1,70 @@
+{
+   "version": "1.0.0",
+   "commit-msg-enforcement": {
+      "enabled": true
+   },
+   "commit-msg": {
+      "length": {
+         "title-line": {
+            "min": 20,
+            "max": 50
+         },
+         "body-line": {
+            "min": 2,
+            "max": 72
+         }
+      }
+   },
+   "release-branches": ["main"],
+   "project": {
+      "name": "validator",
+      "description": "Project for validation utilities in Clojure, ClojureScript, and Babashka",
+      "includes": [
+         "readme"
+      ],
+      "scope": "proj",
+      "scope-alias": "p",
+      "paths": ["(([^\/]*)|(.*((etc)|(resources))\/.*))"],
+      "types": [
+         "revert",
+         "merge",
+         "security",
+         "build",
+         "vendor",
+         "struct",
+         "ci",
+         "ops",
+         "docs",
+         "chore"
+      ],
+      "artifacts": [
+         {
+            "name": "lib",
+            "description": "Validator library",
+            "scope": "lib",
+            "scope-alias": "l",
+            "types": [
+               "feat",
+               "more",
+               "change",
+               "fix",
+               "deprecate",
+               "remove",
+               "less",
+               "clean",
+               "refactor",
+               "perf",
+               "security",
+               "style",
+               "test",
+               "docs",
+               "idocs",
+               "build",
+               "vendor",
+               "ci",
+               "chore"
+            ]
+         }
+      ]
+   }
+}
