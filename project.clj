@@ -34,4 +34,5 @@
                               :creds :gpg}]]
   :main ^:skip-aot validator.core
   :target-path "target/%s"
-  :profiles {:uberjar {:aot :all}})
+  :profiles {:uberjar {:aot :all}
+             :test {:dependencies [[com.kineticfire/collections "2.1.0"]]}})
