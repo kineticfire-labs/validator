@@ -19,7 +19,8 @@
 
 (ns kineticfire.validator.patterns-test
   (:require [clojure.test :refer :all]
-            [kineticfire.validator.patterns :as patterns]))
+            [kineticfire.validator.patterns :as patterns]
+            [kineticfire.collections.collection :as coll]))
 
 
 (deftest matches?-test
@@ -40,6 +41,39 @@
       (is (= (patterns/matches? [digits letters] "123abc") false)))))
 
 
+(deftest matches-test
+  (let [digits (re-pattern "[0-9]+$")
+        digits2 (re-pattern "[0-9]+$")
+        letters (re-pattern "[a-zA-Z]+$")]
+    (testing "one pattern, one match"
+      (let [actual (patterns/matches digits "123")]
+        (is (= (count actual) 0))))
+    (testing "one pattern, no match"
+      (let [actual (patterns/matches digits "abc")
+            actual-str (mapv #(.pattern %) actual)]
+        (is (= (count actual) 1))
+        (is (true? (coll/contains-value? actual-str (.pattern digits))))))
+    (testing "one pattern as collection, one match"
+      (let [actual (patterns/matches [digits] "123")]
+        (is (= (count actual) 0))))
+    (testing "one pattern as collection, no match"
+      (let [actual (patterns/matches [digits] "abc")
+            actual-str (mapv #(.pattern %) actual)]
+        (is (= (count actual) 1))
+        (is (true? (coll/contains-value? actual-str (.pattern digits))))))
+    (testing "two patterns, one no match"
+      (let [actual (patterns/matches [digits letters] "123")
+            actual-str (mapv #(.pattern %) actual)]
+        (is (= (count actual) 1))
+        (is (true? (coll/contains-value? actual-str (.pattern letters))))))
+    (testing "two patterns, two no match"
+      (let [actual (patterns/matches [digits digits2] "abc")
+            actual-str (mapv #(.pattern %) actual)]
+        (is (= (count actual) 2))
+        (is (true? (coll/contains-value? actual-str (.pattern digits))))
+        (is (true? (coll/contains-value? actual-str (.pattern digits2))))))))
+
+
 (deftest contains-match?-test
   (let [digits (re-pattern "[0-9]+")
         letters (re-pattern "[a-zA-Z]+")]
@@ -55,3 +89,36 @@
       (is (= (patterns/contains-match? [digits letters] "123abc") true)))
     (testing "two patterns, one fail"
       (is (= (patterns/contains-match? [digits letters] "123") false)))))
+
+
+(deftest contains-match-test
+  (let [digits (re-pattern "[0-9]+")
+        digits2 (re-pattern "[0-9]+")
+        letters (re-pattern "[a-zA-Z]+")]
+    (testing "one pattern, match"
+      (let [actual (patterns/contains-match digits "ab123cd")]
+        (is (= (count actual) 0))))
+    (testing "one pattern, no match"
+      (let [actual (patterns/contains-match digits "abc")
+            actual-str (mapv #(.pattern %) actual)]
+        (is (= (count actual) 1))
+        (is (true? (coll/contains-value? actual-str (.pattern digits))))))
+    (testing "one pattern as collection, match"
+      (let [actual (patterns/contains-match [digits] "123")]
+        (is (= (count actual) 0))))
+    (testing "one pattern as collection, no match"
+      (let [actual (patterns/contains-match [digits] "abc")
+            actual-str (mapv #(.pattern %) actual)]
+        (is (= (count actual) 1))
+        (is (true? (coll/contains-value? actual-str (.pattern digits))))))
+    (testing "two patterns, one match"
+      (let [actual (patterns/contains-match [digits letters] "123")
+            actual-str (mapv #(.pattern %) actual)]
+        (is (= (count actual) 1))
+        (is (true? (coll/contains-value? actual-str (.pattern letters))))))
+    (testing "two patterns, two matches"
+      (let [actual (patterns/contains-match [digits digits2] "abc")
+            actual-str (mapv #(.pattern %) actual)]
+        (is (= (count actual) 2))
+        (is (true? (coll/contains-value? actual-str (.pattern digits))))
+        (is (true? (coll/contains-value? actual-str (.pattern digits2))))))))

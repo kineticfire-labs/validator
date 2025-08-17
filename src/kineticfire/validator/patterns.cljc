@@ -31,11 +31,34 @@
     (every? #(re-matches % s) patterns)))
 
 
+(defn matches
+  "Compares the compiled pattern(s) in `pat-or-pats` to the whole string `s`, returning a vector of the patterns that
+  did NOT match.  If all patterns matched, then the returned vector is empty.  The argument `pat-or-pats` may be a
+  compiled pattern or a vector thereof."
+  [pat-or-pats s]
+  (let [patterns (if (sequential? pat-or-pats)
+                   pat-or-pats
+                   [pat-or-pats])]
+    (vec (remove #(re-matches % s) patterns))))
+
+
 (defn contains-match?
   "Returns 'true' if the compiled pattern(s) in `pat-or-pats` match a substring in string `s` and 'false' otherwise.
-  The argument `pat-or-pats` may be a compiled pattern or a collection thereof."
+  The argument `pat-or-pats` may be a compiled pattern or a collection thereof.  The argument `pat-or-pats` may be a
+  compiled pattern or a collection thereof."
   [pat-or-pats s]
   (let [patterns (if (sequential? pat-or-pats)
                    pat-or-pats
                    [pat-or-pats])]
     (every? #(re-find % s) patterns)))
+
+
+(defn contains-match
+  "Compares the compiled pattern(s) in `pat-or-pats` to the substring `s`, returning a vector of the patterns that did
+  NOT match.  If all patterns matched, then the returned vector is empty.  The argument `pat-or-pats` may be a compiled
+  pattern or a collection thereof."
+  [pat-or-pats s]
+  (let [patterns (if (sequential? pat-or-pats)
+                   pat-or-pats
+                   [pat-or-pats])]
+    (vec (remove #(re-find % s) patterns))))
