@@ -85,6 +85,7 @@
     )
 
   )
+;; todo: finish
 
 ;; (def pattern (re-pattern "^[0-9]+$")) ; matches only digits
 
