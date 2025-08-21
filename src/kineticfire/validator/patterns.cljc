@@ -17,13 +17,12 @@
 ;;	   Project site: https://github.com/kineticfire-labs/validator/
 
 
-(ns kineticfire.validator.patterns
-  (:gen-class))
+(ns kineticfire.validator.patterns)
 
 
-(defn matches?
-  "Returns 'true' if the compiled pattern(s) in `pat-or-pats` match the whole string `s` and 'false' otherwise.  The
-  argument `pat-or-pats` may be a compiled pattern or a collection thereof."
+(defn matches-whole?
+  "True if all compiled pattern(s) in `pat-or-pats` match the whole string `s`.
+   Returns boolean."
   [pat-or-pats s]
   (let [patterns (if (sequential? pat-or-pats)
                    pat-or-pats
@@ -31,10 +30,19 @@
     (every? #(re-matches % s) patterns)))
 
 
-(defn matches
-  "Compares the compiled pattern(s) in `pat-or-pats` to the whole string `s`, returning a vector of the patterns that
-  did NOT match.  If all patterns matched, then the returned vector is empty.  The argument `pat-or-pats` may be a
-  compiled pattern or a vector thereof."
+(defn matches-whole-yes
+  "Return a vector of patterns that DID match the whole string `s`.
+   If none matched, returns []."
+  [pat-or-pats s]
+  (let [patterns (if (sequential? pat-or-pats)
+                   pat-or-pats
+                   [pat-or-pats])]
+    (vec (filter #(re-matches % s) patterns))))
+
+
+(defn matches-whole-not
+  "Return a vector of patterns that did NOT match the whole string `s`.
+   If all matched, returns []."
   [pat-or-pats s]
   (let [patterns (if (sequential? pat-or-pats)
                    pat-or-pats
@@ -42,10 +50,9 @@
     (vec (remove #(re-matches % s) patterns))))
 
 
-(defn contains-match?
-  "Returns 'true' if the compiled pattern(s) in `pat-or-pats` match a substring in string `s` and 'false' otherwise.
-  The argument `pat-or-pats` may be a compiled pattern or a collection thereof.  The argument `pat-or-pats` may be a
-  compiled pattern or a collection thereof."
+(defn matches-substr?
+  "True if all compiled pattern(s) in `pat-or-pats` match a substring in `s`.
+   Returns boolean."
   [pat-or-pats s]
   (let [patterns (if (sequential? pat-or-pats)
                    pat-or-pats
@@ -53,10 +60,19 @@
     (every? #(re-find % s) patterns)))
 
 
-(defn contains-match
-  "Compares the compiled pattern(s) in `pat-or-pats` to the substring `s`, returning a vector of the patterns that did
-  NOT match.  If all patterns matched, then the returned vector is empty.  The argument `pat-or-pats` may be a compiled
-  pattern or a collection thereof."
+(defn matches-substr-yes
+  "Return a vector of patterns that DID match at least one substring in `s`.
+   If none matched, returns []."
+  [pat-or-pats s]
+  (let [patterns (if (sequential? pat-or-pats)
+                   pat-or-pats
+                   [pat-or-pats])]
+    (vec (filter #(re-find % s) patterns))))
+
+
+(defn matches-substr-not
+  "Return a vector of patterns that did NOT match any substring in `s`.
+   If all matched, returns []."
   [pat-or-pats s]
   (let [patterns (if (sequential? pat-or-pats)
                    pat-or-pats
