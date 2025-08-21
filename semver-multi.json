@@ -64,6 +64,33 @@
                "ci",
                "chore"
             ]
+         },
+         {
+            "name": "examples",
+            "description": "Examples to demonstrate the validator library",
+            "scope": "example",
+            "scope-alias": "e",
+            "types": [
+               "feat",
+               "more",
+               "change",
+               "fix",
+               "deprecate",
+               "remove",
+               "less",
+               "clean",
+               "refactor",
+               "perf",
+               "security",
+               "style",
+               "test",
+               "docs",
+               "idocs",
+               "build",
+               "vendor",
+               "ci",
+               "chore"
+            ]
          }
       ]
    }
