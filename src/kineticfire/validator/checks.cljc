@@ -20,34 +20,16 @@
 ;; An aggregator for all checks at kineticfire.validator.checks.*
 
 (ns kineticfire.validator.checks
+  (:refer-clojure :exclude [string? number?])
   (:require [kineticfire.validator.checks.basic :as basic]))
 
 
 ;; 'basic' re-imports
-(def validate-string basic/string?)
-(def validate-string basic/string-explain)
+(def string?        basic/string?)
+(def string-explain basic/string-explain)
 
+(def string-as-keyword?        basic/string-as-keyword?)
+(def string-as-keyword-explain basic/string-as-keyword-explain)
 
-;;todo
-;(checks/string? "abc")
-;;; => true/false
-;
-;(checks/string-explain "abc")
-;;; => {:valid? false
-;;;     :code   :string/not-keyword-safe
-;;;     :message "Not keyword-safe: abc"}
-
-
-
-
-;todo
-;Recommended naming split
-;
-;Boolean predicate (pure check):
-;kineticfire.validator.checks/string? → true | false
-;
-;Rich/explain result:
-;kineticfire.validator.checks/string-explain → {:valid? ... :code ... :message ... ...}
-;
-;Collapsed “legacy” result (true or caller-provided error):
-;kineticfire.validator.core/validate-string → true | <err-collapsed>
+(def number?        basic/number?)
+(def number-explain basic/number-explain)
