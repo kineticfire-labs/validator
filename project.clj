@@ -35,4 +35,4 @@
   :main ^:skip-aot validator.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}
-             :test {:dependencies [[com.kineticfire/collections "2.1.0"]]}})
+             :test {:dependencies [[com.kineticfire/collections "2.1.1"]]}})
