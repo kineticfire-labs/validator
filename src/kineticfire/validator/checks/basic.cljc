@@ -18,180 +18,322 @@
 
 
 (ns kineticfire.validator.checks.basic
-  (:require [kineticfire.validator.patterns :as patterns])
+  (:refer-clojure :exclude [number? string?])
+  (:require [clojure.core :as core]
+            [kineticfire.validator.patterns :as patterns])
   (:import (java.util.regex Pattern)))
 
 
 (def ^:const valid-string-as-keyword-pattern (Pattern/compile "^[a-zA-Z][a-zA-Z0-9_-]*$"))
 
 
-(defn validate-string
-  "Validates the string `s` returning boolean 'true' if valid else returns 'false' or `err` if using a form that
-  includes `err`.
+;; -----------------------------------------------------------------------------
+;; Basic string checks
+;;
+;; Boolean predicate:
+;;   (checks/string? "abc" {:min 1 :max 10 :nil-ok false ...})
+;;   => true | false
+;;
+;; Explain variant (first failure):
+;;   (checks/string-explain "123abc" {:pat-or-pats-whole (re-pattern "^[A-Za-z]+$")})
+;;   => {:valid? false
+;;       :code :string/regex-whole-failed
+;;       :message "Whole-string pattern(s) failed."
+;;       :expected {:regex ["^[A-Za-z]+$"]}
+;;       :value "123abc"}
+;; -----------------------------------------------------------------------------
 
-  By default, `s` is valid string if it is:
-    - not 'nil'
-    - a string such that '(string? s)' returns 'true'
-
-  The `settings` map argument can provide additional string validation criteria:
-    - :nil-ok            → 'true' if a valid string can be 'nil' and 'false' otherwise; defaults to 'false'
-    - :min               → minimum number of characters for a valid string; defaults to empty string
-    - :max               → maximum number of characters for  valid string; defaults to no maximum value
-    - :pat-or-pats-whole → a compiled regex pattern or collection thereof to validate the whole string; defaults to no
-                           regex patterns
-    - :pat-or-pats-sub   → a compiled regex pattern or collection thereof to validate a substring; defaults to no regex
-                           patterns
-    - :fn-or-fns         → a function or collection thereof to validate the string, where the function accepts the
-                           string as a single argument and must return 'true' if the string is valid or 'false'
-                           otherwise; defaults to no function"
-  ([s]
-   (validate-string s false {}))
-  ([s err]
-   (validate-string s err {}))
-  ([s err settings]
-   (if (nil? s)
-     (if (:nil-ok settings)
-       true
-       err)
-     (if-not (string? s)
-       err
-       (let [length (if (or
-                          (:min settings)
-                          (:max settings))
-                      (count s)
-                      -1)
-             min-valid (if (:min settings)
-                         (if (< length (:min settings))
-                           false
-                           true)
-                         true)]
-         (if-not min-valid
-           err
-           (let [max-valid (if (:max settings)
-                             (if (> length (:max settings))
-                               false
-                               true)
-                             true)]
-             (if-not max-valid
-               err
-               (let [pat-or-pats-whole-valid (if (:pat-or-pats-whole settings)
-                                               (patterns/matches-whole? (:pat-or-pats-whole settings) s)
-                                               true)]
-                 (if-not pat-or-pats-whole-valid
-                   err
-                   (let [pat-or-pats-sub-valid (if (:pat-or-pats-sub settings)
-                                                 (patterns/matches-whole-not (:pat-or-pats-sub settings) s)
-                                                 true)]
-                     (if-not pat-or-pats-sub-valid
-                       err
-                       (let [fn-or-fns-valid (if (:fn-or-fns settings)
-                                               (let [fns (if (sequential? (:fn-or-fns settings))
-                                                           (:fn-or-fns settings)
-                                                           [(:fn-or-fns settings)])]
-                                                 (boolean (every? #(true? (% s)) fns)))
-                                               true)]
-                         (if-not fn-or-fns-valid
-                           err
-                           true))))))))))))))
+(defn- ->patterns
+  "Normalize a single compiled regex or a collection into a vector of Patterns.
+   Returns nil if input is nil."
+  ^java.util.List
+  [pat-or-pats]
+  (when pat-or-pats
+    (let [ps (if (sequential? pat-or-pats) pat-or-pats [pat-or-pats])]
+      (vec ps))))
 
 
-(defn validate-string-as-keyword
-  "Validates the string `s` as a string and a keyword, returning boolean 'true' if valid else returns 'false' or `err`
-  if using a form that includes `err`.
+(defn- ->fns
+  "Normalize a single predicate fn or a collection into a vector of fns.
+   Returns nil if input is nil."
+  [fn-or-fns]
+  (when fn-or-fns
+    (let [fs (if (sequential? fn-or-fns) fn-or-fns [fn-or-fns])]
+      (vec fs))))
 
-  By default, `s` is a valid string if it is:
-    - not 'nil'
-    - a string such that '(string? s)' returns 'true'
-    - has a length of at least one character
-    - does not contain invalid keyword characters:  colon, forward slash, space, or  leading numeric, dash, or
-      underscore characters
 
-  The `settings` map argument can provide additional string validation criteria:
-    - :nil-ok            → 'true' if a valid string can be 'nil' and 'false' otherwise; defaults to 'false'
-    - :min               → minimum number of characters for a valid string; defaults to 1 and must be at least 1
-    - :max               → maximum number of characters for  valid string; defaults to no maximum value
-    - :pat-or-pats-whole → a compiled regex pattern or collection thereof to validate the whole string; defaults to no
-                           regex patterns
-    - :pat-or-pats-sub   → a compiled regex pattern or collection thereof to validate a substring; defaults to no regex
-                           patterns
-    - :fn-or-fns         → a function or collection thereof to validate the string, where the function accepts the
-                           string as a single argument and must return 'true' if the string is valid or 'false'
-                           otherwise; defaults to no function"
-  ([s]
-   (validate-string-as-keyword s false {}))
-  ([s err]
-   (validate-string-as-keyword s err {}))
-  ([s err settings]
-   (let [res (validate-string s err settings)]
-     (if (and
-           (boolean? res)
-           res)
+(defn string?
+  "Boolean predicate that validates a string `s` with optional `settings`.
+
+   Settings:
+     :nil-ok            boolean  allow nil as valid; optional, defaults to 'false'
+     :min               integer  minimum length (inclusive); optional, defaults to no check
+     :max               integer  maximum length (inclusive); optional, defaults to no check
+     :pat-or-pats-whole Pattern | Collection<Pattern>
+                         all patterns must match the WHOLE string; optional, defaults to no check
+     :pat-or-pats-sub   Pattern | Collection<Pattern>
+                         all patterns must match as a SUBSTRING somewhere; optional, defaults to no check
+     :fn-or-fns         (fn [s] ...) | Collection<(fn [s] ...)>; each must return true; optional, defaults to no check
+
+   Returns true iff all configured checks pass."
+  ([s] (string? s {}))
+  ([s {:keys [nil-ok min max pat-or-pats-whole pat-or-pats-sub fn-or-fns]
+       :or   {nil-ok false}}]
+   (cond
+     ;; nil handling
+     (nil? s) nil-ok
+
+     ;; type check
+     (not (core/string? s)) false
+
+     :else
+     (let [len (count s)]
+       (and
+         ;; length min/max (only when provided)
+         (if (some? min) (<= min len) true)
+         (if (some? max) (<= len max) true)
+
+         ;; whole-string regex (all must match)
+         (let [ps (->patterns pat-or-pats-whole)]
+           (if ps (patterns/matches-whole? ps s) true))
+
+         ;; substring regex (all must match somewhere)
+         (let [ps (->patterns pat-or-pats-sub)]
+           (if ps (patterns/matches-substr? ps s) true))
+
+         ;; custom predicates (all must return true)
+         (let [fs (->fns fn-or-fns)]
+           (if fs (every? #(boolean (% s)) fs) true)))))))
+
+
+(defn string-explain
+  "Explain-style validator for strings. Returns either
+     {:valid? true :value s}
+   or the first failure as
+     {:valid? false
+      :code <kw> :message <str>
+      :value s
+      :expected <optional-map>}
+
+   Supported settings are identical to `string?`."
+  ([s] (string-explain s {}))
+  ([s {:keys [nil-ok min max pat-or-pats-whole pat-or-pats-sub fn-or-fns]
+       :or   {nil-ok false}}]
+   (cond
+     ;; nil handling
+     (nil? s)
+     (if nil-ok
+       {:valid? true :value s}
+       {:valid? false :code :string/nil :message "Value is nil." :value s})
+
+     ;; type check
+     (not (core/string? s))
+     {:valid?  false
+      :code    :type/not-string
+      :message (str "Expected string, got " (some-> s class .getName) ".")
+      :value   s}
+
+     :else
+     (let [len (count s)
+           whole (->patterns pat-or-pats-whole)
+           sub (->patterns pat-or-pats-sub)
+           fns (->fns fn-or-fns)]
+       (cond
+         (and (some? min) (< len min))
+         {:valid?   false
+          :code     :string/too-short
+          :message  (str "String shorter than min length " min ".")
+          :expected {:min min}
+          :value    s}
+
+         (and (some? max) (> len max))
+         {:valid?   false
+          :code     :string/too-long
+          :message  (str "String longer than max length " max ".")
+          :expected {:max max}
+          :value    s}
+
+         (and whole (not (patterns/matches-whole? whole s)))
+         {:valid?   false
+          :code     :string/regex-whole-failed
+          :message  "Whole-string pattern(s) failed."
+          :expected {:regex (mapv #(.pattern ^java.util.regex.Pattern %) whole)}
+          :value    s}
+
+         (and sub (not (patterns/matches-substr? sub s)))
+         {:valid?   false
+          :code     :string/regex-substr-failed
+          :message  "Substring pattern(s) failed."
+          :expected {:regex (mapv #(.pattern ^java.util.regex.Pattern %) sub)}
+          :value    s}
+
+         (and fns (not (every? #(boolean (% s)) fns)))      ;; <- boolean, not true?
+         {:valid?  false
+          :code    :string/predicate-failed
+          :message "Custom predicate(s) returned false."
+          :value   s}
+
+         :else
+         {:valid? true :value s})))))
+
+
+(defn- clamp-min>=1
+  "Ensure :min is at least 1; if :min missing, default to 1."
+  [settings]
+  (let [m (:min settings)]
+    (-> settings
+        (assoc :min (if (some? m) (max 1 m) 1)))))
+
+
+(defn string-as-keyword?
+  "Boolean predicate: is `s` a valid string that can be converted to a Clojure keyword?
+
+   Settings (same as `string?`), with differences:
+     - :nil-ok defaults to false (nil is invalid unless explicitly allowed)
+     - :min defaults to 1 (and is clamped to at least 1)
+
+   Returns true/false."
+  ([s] (string-as-keyword? s {}))
+  ([s settings]
+   (let [settings* (-> settings
+                       (update :nil-ok #(if (nil? %) false %))
+                       (clamp-min>=1))]
+     (and
+       ;; must be a valid string by base rules
+       (string? s settings*)
+
+       ;; if nil is allowed and s is nil, treat as valid and skip regex
+       (or (nil? s)
+           (boolean (re-matches valid-string-as-keyword-pattern s)))))))
+
+
+(defn string-as-keyword-explain
+  "Explain-style validator for keyword-safe strings.
+   Returns {:valid? true :value s} on success, else first failure map.
+
+   Differences from `string-explain`:
+     - Enforces min length >= 1 by default (clamps provided :min).
+     - Adds a keyword-safe whole-string regex step."
+  ([s] (string-as-keyword-explain s {}))
+  ([s settings]
+   (let [settings* (-> settings
+                       (update :nil-ok #(if (nil? %) false %))
+                       (clamp-min>=1))
+         base (string-explain s settings*)]
+     (if (not (:valid? base))
+       base
+       ;; base string checks passed (or nil allowed and s is nil)
        (if (nil? s)
-         true
-         (if-not (seq (re-find valid-string-as-keyword-pattern s))
-           err
-           true))
-       err))))
+         {:valid? true :value s}
+         (if (re-matches valid-string-as-keyword-pattern s)
+           {:valid? true :value s}
+           {:valid?   false
+            :code     :string/not-keyword-safe
+            :message  (str "Not keyword-safe: " s)
+            :expected {:regex [(.pattern valid-string-as-keyword-pattern)]}
+            :value    s}))))))
 
 
-(defn validate-number
-  "Validates the number `n` returning boolean 'true' if valid else returns 'false' or `err` if using a form that
-  includes `err`.
+(defn- match-number-type?
+  "Return true if `n` matches the requested number type keyword."
+  [n t]
+  (case t
+    :int (integer? n)                                       ; covers Long/BigInt
+    :float (instance? Float n)                              ; specifically a Float
+    :double (double? n)                                     ; Double
+    :decimal (instance? BigDecimal n)                       ; BigDecimal
+    :ratio (ratio? n)                                       ; clojure.lang.Ratio
+    (boolean (core/number? n))))                            ; default: any number
 
-  By default, `n` is a valid number if it is:
-    - not 'nil'
-    - a number, such that '(number? n)' is 'true'
 
-  The `settings` map argument can provide additional string validation criteria:
-    - :nil-ok            → 'true' if a valid number can be 'nil' and 'false' otherwise; defaults to 'false'
-    - :type              → the type of number as:  :int (integer), :float (float), :double (double), :decimal (decimal),
-                           and :ratio (ratio); defaults to '(number? n)'
-    - :min               → minimum value of the number; defaults to no check
-    - :max               → maximum value of the number; defaults to no check
-    - :fn-or-fns         → a function or collection thereof to validate the number, where the function accepts the
-                           number as a single argument and must return 'true' if the number is valid or 'false'
-                           otherwise; defaults to no function"
-  ([n]
-   (validate-number n false {}))
-  ([n err]
-   (validate-number n err {}))
-  ([n err settings]
-   (if (nil? n)
-     (if (:nil-ok settings)
-       true
-       err)
-     (let [numeric-type (:type settings)
-           numeric-type-ok (if-not numeric-type
-                             (number? n)
-                             (cond
-                               (= :int numeric-type) (int? n)
-                               (= :float numeric-type) (float? n)
-                               (= :double numeric-type) (double? n)
-                               (= :decimal numeric-type) (decimal? n)
-                               (= :ratio numeric-type) (ratio? n)
-                               :else false))]
-       (if-not numeric-type-ok
-         err
-         (let [min-valid (if (:min settings)
-                           (if (< n (:min settings))
-                             false
-                             true)
-                           true)]
-           (if-not min-valid
-             err
-             (let [max-valid (if (:max settings)
-                               (if (> n (:max settings))
-                                 false
-                                 true)
-                               true)]
-               (if-not max-valid
-                 err
-                 (let [fn-or-fns-valid (if (:fn-or-fns settings)
-                                         (let [fns (if (sequential? (:fn-or-fns settings))
-                                                     (:fn-or-fns settings)
-                                                     [(:fn-or-fns settings)])]
-                                           (boolean (every? #(true? (% n)) fns)))
-                                         true)]
-                   (if-not fn-or-fns-valid
-                     err
-                     true)))))))))))
+(defn number?
+  "Boolean predicate that validates a number `n` with optional `settings`.
+
+   Settings:
+     :nil-ok    boolean  (default false) allow nil as valid
+     :type      one of #{:int :float :double :decimal :ratio}; default: any number
+     :min       minimum value (inclusive)
+     :max       maximum value (inclusive)
+     :fn-or-fns (fn [n] ...) | Collection<(fn [n] ...)>; each must return truthy
+
+   Returns true iff all configured checks pass."
+  ([n] (number? n {}))
+  ([n {:keys [nil-ok type min max fn-or-fns]
+       :or   {nil-ok false}}]
+   (cond
+     (nil? n) nil-ok
+     (not (core/number? n)) false
+     :else
+     (and
+       ;; type constraint (if provided)
+       (if (some? type) (match-number-type? n type) true)
+       ;; min/max (if provided)
+       (if (some? min) (<= min n) true)
+       (if (some? max) (<= n max) true)
+       ;; custom predicates (all must be truthy)
+       (let [fs (->fns fn-or-fns)]
+         (if fs (every? #(boolean (% n)) fs) true))))))
+
+
+(defn number-explain
+  "Explain-style validator for numbers. Returns either
+     {:valid? true :value n}
+   or the first failure as
+     {:valid? false
+      :code <kw> :message <str>
+      :value n
+      :expected <optional-map>}.
+
+   Settings identical to `number?`."
+  ([n] (number-explain n {}))
+  ([n {:keys [nil-ok type min max fn-or-fns]
+       :or   {nil-ok false}}]
+   (cond
+     ;; nil handling
+     (nil? n)
+     (if nil-ok
+       {:valid? true :value n}
+       {:valid? false :code :number/nil :message "Value is nil." :value n})
+
+     ;; type check (must be a number first)
+     (not (core/number? n))
+     {:valid?  false
+      :code    :type/not-number
+      :message (str "Expected number, got " (some-> n class .getName) ".")
+      :value   n}
+
+     ;; type constraint (if provided)
+     (and (some? type) (not (match-number-type? n type)))
+     {:valid?   false
+      :code     :number/wrong-type
+      :message  (str "Number is not of requested type " type ".")
+      :expected {:type type}
+      :value    n}
+
+     ;; min/max
+     (and (some? min) (< n min))
+     {:valid?   false
+      :code     :number/too-small
+      :message  (str "Number is smaller than min " min ".")
+      :expected {:min min}
+      :value    n}
+
+     (and (some? max) (> n max))
+     {:valid?   false
+      :code     :number/too-large
+      :message  (str "Number is larger than max " max ".")
+      :expected {:max max}
+      :value    n}
+
+     ;; custom predicates (first failure)
+     :else
+     (let [fs (->fns fn-or-fns)]
+       (cond
+         (and fs (not (every? #(boolean (% n)) fs)))
+         {:valid?  false
+          :code    :number/predicate-failed
+          :message "Custom predicate(s) returned false."
+          :value   n}
+
+         :else
+         {:valid? true :value n})))))

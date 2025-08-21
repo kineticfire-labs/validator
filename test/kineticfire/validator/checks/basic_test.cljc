@@ -19,329 +19,359 @@
 
 (ns kineticfire.validator.checks.basic-test
   (:require [clojure.test :refer :all]
-            [kineticfire.validator.checks.basic :as basic]))
+            [kineticfire.validator.checks.basic :as basic])
+  (:import (java.util.regex Pattern)))
 
 
-(defn perform-validate-string-test
-  [s err settings expected]
-  (let [actual (cond
-                 settings (basic/validate-string s err settings)
-                 err (basic/validate-string s err)
-                 :else (basic/validate-string s))]
-    (is (= actual expected))))
+;; ---------------------------------------------------------------------------
+;; string? predicate
+;; ---------------------------------------------------------------------------
 
 
-;(deftest validate-string-test
-;  ;;
-;  ;; [s] form
-;  (testing "[s]: invalid: s is nil"
-;    (perform-validate-string-test nil nil nil false))
-;  (testing "[s]: invalid: s is not a string"
-;    (perform-validate-string-test 1 nil nil false))
-;  (testing "[s]: valid: empty string"
-;    (perform-validate-string-test "" nil nil true))
-;  (testing "[s]: valid: string"
-;    (perform-validate-string-test "hello" nil nil true))
-;  ;;
-;  ;; [s err] form
-;  (let [err "Invalid string"]
-;    (testing "[s err]: invalid: s is nil"
-;      (perform-validate-string-test nil err nil err))
-;    (testing "[s err]: invalid: s is not a string"
-;      (perform-validate-string-test 1 err nil err))
-;    (testing "[s err]: valid: empty string"
-;      (perform-validate-string-test "" err nil true))
-;    (testing "[s err]: valid: string"
-;      (perform-validate-string-test "hello" err nil true)))
-;  ;;
-;  ;; [s err settings] form
-;  (let [err "Invalid string"]
-;    ;; - w/ empty settings
-;    (testing "[s err settings]: invalid: s is nil"
-;      (perform-validate-string-test nil err {} err))
-;    (testing "[s err settings]: invalid: s is not a string"
-;      (perform-validate-string-test 1 err {} err))
-;    (testing "[s err settings]: valid: empty string"
-;      (perform-validate-string-test "" err {} true))
-;    (testing "[s err settings]: valid: string"
-;      (perform-validate-string-test "hello" err {} true))
-;    ;; - w/ settings define
-;    (let [digits-whole (re-pattern "[0-9]+$")
-;          letters-whole (re-pattern "[a-zA-Z]+$")
-;          alnum-whole (re-pattern "[a-zA-Z0-9]+$")
-;          digits-sub (re-pattern "[0-9]+")
-;          digits2-sub (re-pattern "[0-9]+")
-;          letters-sub (re-pattern "[a-zA-Z]+")]
-;      (testing "[s err settings]: invalid: s is nil, :nil-ok 'false'"
-;        (perform-validate-string-test nil err {:nil-ok false} err))
-;      (testing "[s err settings]: valid: s is nil, :nil-ok 'true'"
-;        (perform-validate-string-test nil err {:nil-ok true} true))
-;      (testing "[s err settings]: invalid: s is not a string"
-;        (perform-validate-string-test 1 err {:min 1, :max 5} err))
-;      (testing "[s err settings]: valid: empty string"
-;        (perform-validate-string-test "" err {:min 0, :max 5} true))
-;      (testing "[s err settings]: invalid: empty string, less than min"
-;        (perform-validate-string-test "" err {:min 1, :max 5} err))
-;      (testing "[s err settings]: invalid: string, greater than max"
-;        (perform-validate-string-test "hello there" err {:min 1, :max 5} err))
-;      ;; - pattern whole string
-;      (testing "[s err settings]: invalid: string, pattern whole string fail"
-;        (perform-validate-string-test "hello" err {:pat-or-pats-whole digits-whole} err))
-;      (testing "[s err settings]: valid: string, pattern whole string"
-;        (perform-validate-string-test "hello" err {:pat-or-pats-whole letters-whole} true))
-;      (testing "[s err settings]: invalid: string, pattern whole string as collection fail"
-;        (perform-validate-string-test "hello" err {:pat-or-pats-whole [digits-whole]} err))
-;      (testing "[s err settings]: valid: string, pattern whole string as collection"
-;        (perform-validate-string-test "hello" err {:pat-or-pats-whole [letters-whole]} true))
-;      (testing "[s err settings]: invalid: string, 2 patterns whole string as collection fail"
-;        (perform-validate-string-test "hello" err {:pat-or-pats-whole [digits-whole letters-whole]} err))
-;      (testing "[s err settings]: valid: string, 2 patterns whole string as collection"
-;        (perform-validate-string-test "hello" err {:pat-or-pats-whole [alnum-whole letters-whole]} true))
-;      ;; - pattern substring
-;      (testing "[s err settings]: invalid: string, pattern substring fail"
-;        (perform-validate-string-test "hello" err {:pat-or-pats-sub digits-sub} err))
-;      (testing "[s err settings]: valid: string, pattern substring"
-;        (perform-validate-string-test "hel123lo" err {:pat-or-pats-sub digits-sub} true))
-;      (testing "[s err settings]: invalid: string, pattern substring as collection fail"
-;        (perform-validate-string-test "hello" err {:pat-or-pats-sub [digits-sub]} err))
-;      (testing "[s err settings]: valid: string, pattern whole string as collection"
-;        (perform-validate-string-test "hel123lo" err {:pat-or-pats-sub [digits-sub]} true))
-;      (testing "[s err settings]: invalid: string, 2 patterns substring as collection fail"
-;        (perform-validate-string-test "hello" err {:pat-or-pats-sub [digits-sub digits2-sub]} err))
-;      (testing "[s err settings]: valid: string, 2 patterns substring as collection"
-;        (perform-validate-string-test "hel123lo" err {:pat-or-pats-sub [digits-sub letters-sub]} true))
-;      ;; - fn
-;      (testing "[s err settings]: invalid: one fn fail"
-;        (perform-validate-string-test "hello" err {:fn-or-fns #(if (= "hello" %)
-;                                                                 false
-;                                                                 true)} err))
-;      (testing "[s err settings]: valid: one fn"
-;        (perform-validate-string-test "hi" err {:fn-or-fns #(if (= "hello" %)
-;                                                              false
-;                                                              true)} true))
-;      (testing "[s err settings]: invalid: one fn as collection fail"
-;        (perform-validate-string-test "hello" err {:fn-or-fns [#(if (= "hello" %)
-;                                                                  false
-;                                                                  true)]} err))
-;      (testing "[s err settings]: valid: one fn as collection "
-;        (perform-validate-string-test "hi" err {:fn-or-fns [#(if (= "hello" %)
-;                                                               false
-;                                                               true)]} true))
-;      (testing "[s err settings]: invalid: two fn as collection fail"
-;        (perform-validate-string-test "hello" err {:fn-or-fns [#(if (= "hello" %)
-;                                                                  false
-;                                                                  true)
-;                                                               #(if (= "howdy" %)
-;                                                                  false
-;                                                                  true)]} err))
-;      (testing "[s err settings]: valid: two fn as collection "
-;        (perform-validate-string-test "hi" err {:fn-or-fns [#(if (= "hello" %)
-;                                                               false
-;                                                               true)
-;                                                            #(if (= "howdy" %)
-;                                                               false
-;                                                               true)]} true)))))
-;
-;
-;(defn perform-validate-string-as-keyword-test
-;  [s err settings expected]
-;  (let [actual (cond
-;                 settings (checks/validate-string-as-keyword s err settings)
-;                 err (checks/validate-string-as-keyword s err)
-;                 :else (checks/validate-string-as-keyword s))]
-;    (is (= actual expected))))
-;
-;
-;(deftest validate-string-as-keyword-test
-;  ;;
-;  ;; [s] form
-;  (testing "[s]: invalid: s is nil"
-;    (perform-validate-string-as-keyword-test nil nil nil false))
-;  (testing "[s]: invalid: s is not a string"
-;    (perform-validate-string-as-keyword-test 1 nil nil false))
-;  (testing "[s]: valid: empty string"
-;    (perform-validate-string-as-keyword-test "" nil nil false))
-;  (testing "[s]: valid: string"
-;    (perform-validate-string-as-keyword-test "hello" nil nil true))
-;  ;;
-;  ;; [s err] form
-;  (let [err "Invalid string"]
-;    (testing "[s err]: invalid: s is nil"
-;      (perform-validate-string-as-keyword-test nil err nil err))
-;    (testing "[s err]: invalid: s is not a string"
-;      (perform-validate-string-as-keyword-test 1 err nil err))
-;    (testing "[s err]: valid: empty string"
-;      (perform-validate-string-as-keyword-test "" err nil err))
-;    (testing "[s err]: valid: string"
-;      (perform-validate-string-as-keyword-test "hello" err nil true)))
-;  ;;
-;  ;; [s err settings] form
-;  (let [err "Invalid string"]
-;    ;; - w/ empty settings
-;    (testing "[s err settings]: invalid: s is nil"
-;      (perform-validate-string-as-keyword-test nil err {} err))
-;    (testing "[s err settings]: invalid: s is not a string"
-;      (perform-validate-string-as-keyword-test 1 err {} err))
-;    (testing "[s err settings]: valid: empty string"
-;      (perform-validate-string-as-keyword-test "" err {} err))
-;    (testing "[s err settings]: valid: string"
-;      (perform-validate-string-as-keyword-test "hello" err {} true))
-;    ;; - w/ settings define
-;    (let [digits-whole (re-pattern "[0-9]+$")
-;          letters-whole (re-pattern "[a-zA-Z]+$")
-;          alnum-whole (re-pattern "[a-zA-Z0-9]+$")
-;          digits-sub (re-pattern "[0-9]+")
-;          digits2-sub (re-pattern "[0-9]+")
-;          letters-sub (re-pattern "[a-zA-Z]+")]
-;      (testing "[s err settings]: invalid: s is nil, :nil-ok 'false'"
-;        (perform-validate-string-as-keyword-test nil err {:nil-ok false} err))
-;      (testing "[s err settings]: valid: s is nil, :nil-ok 'true'"
-;        (perform-validate-string-as-keyword-test nil err {:nil-ok true} true))
-;      (testing "[s err settings]: invalid: s is not a string"
-;        (perform-validate-string-as-keyword-test 1 err {:min 1, :max 5} err))
-;      (testing "[s err settings]: valid: empty string"
-;        (perform-validate-string-as-keyword-test "" err {:min 0, :max 5} err))
-;      (testing "[s err settings]: invalid: empty string, less than min"
-;        (perform-validate-string-as-keyword-test "" err {:min 1, :max 5} err))
-;      (testing "[s err settings]: invalid: string, greater than max"
-;        (perform-validate-string-as-keyword-test "hello there" err {:min 1, :max 5} err))
-;      ;; - pattern whole string
-;      (testing "[s err settings]: invalid: string, pattern whole string fail"
-;        (perform-validate-string-as-keyword-test "hello" err {:pat-or-pats-whole digits-whole} err))
-;      (testing "[s err settings]: valid: string, pattern whole string"
-;        (perform-validate-string-as-keyword-test "hello" err {:pat-or-pats-whole letters-whole} true))
-;      (testing "[s err settings]: invalid: string, pattern whole string as collection fail"
-;        (perform-validate-string-as-keyword-test "hello" err {:pat-or-pats-whole [digits-whole]} err))
-;      (testing "[s err settings]: valid: string, pattern whole string as collection"
-;        (perform-validate-string-as-keyword-test "hello" err {:pat-or-pats-whole [letters-whole]} true))
-;      (testing "[s err settings]: invalid: string, 2 patterns whole string as collection fail"
-;        (perform-validate-string-as-keyword-test "hello" err {:pat-or-pats-whole [digits-whole letters-whole]} err))
-;      (testing "[s err settings]: valid: string, 2 patterns whole string as collection"
-;        (perform-validate-string-as-keyword-test "hello" err {:pat-or-pats-whole [alnum-whole letters-whole]} true))
-;      ;; - pattern substring
-;      (testing "[s err settings]: invalid: string, pattern substring fail"
-;        (perform-validate-string-as-keyword-test "hello" err {:pat-or-pats-sub digits-sub} err))
-;      (testing "[s err settings]: valid: string, pattern substring"
-;        (perform-validate-string-as-keyword-test "hel123lo" err {:pat-or-pats-sub digits-sub} true))
-;      (testing "[s err settings]: invalid: string, pattern substring as collection fail"
-;        (perform-validate-string-as-keyword-test "hello" err {:pat-or-pats-sub [digits-sub]} err))
-;      (testing "[s err settings]: valid: string, pattern whole string as collection"
-;        (perform-validate-string-as-keyword-test "hel123lo" err {:pat-or-pats-sub [digits-sub]} true))
-;      (testing "[s err settings]: invalid: string, 2 patterns substring as collection fail"
-;        (perform-validate-string-as-keyword-test "hello" err {:pat-or-pats-sub [digits-sub digits2-sub]} err))
-;      (testing "[s err settings]: valid: string, 2 patterns substring as collection"
-;        (perform-validate-string-as-keyword-test "hel123lo" err {:pat-or-pats-sub [digits-sub letters-sub]} true))
-;      ;; - fn
-;      (testing "[s err settings]: invalid: one fn fail"
-;        (perform-validate-string-as-keyword-test "hello" err {:fn-or-fns #(if (= "hello" %)
-;                                                                            false
-;                                                                            true)} err))
-;      (testing "[s err settings]: valid: one fn"
-;        (perform-validate-string-as-keyword-test "hi" err {:fn-or-fns #(if (= "hello" %)
-;                                                                         false
-;                                                                         true)} true))
-;      (testing "[s err settings]: invalid: one fn as collection fail"
-;        (perform-validate-string-as-keyword-test "hello" err {:fn-or-fns [#(if (= "hello" %)
-;                                                                             false
-;                                                                             true)]} err))
-;      (testing "[s err settings]: valid: one fn as collection "
-;        (perform-validate-string-as-keyword-test "hi" err {:fn-or-fns [#(if (= "hello" %)
-;                                                                          false
-;                                                                          true)]} true))
-;      (testing "[s err settings]: invalid: two fn as collection fail"
-;        (perform-validate-string-as-keyword-test "hello" err {:fn-or-fns [#(if (= "hello" %)
-;                                                                             false
-;                                                                             true)
-;                                                                          #(if (= "howdy" %)
-;                                                                             false
-;                                                                             true)]} err))
-;      (testing "[s err settings]: valid: two fn as collection "
-;        (perform-validate-string-as-keyword-test "hi" err {:fn-or-fns [#(if (= "hello" %)
-;                                                                          false
-;                                                                          true)
-;                                                                       #(if (= "howdy" %)
-;                                                                          false
-;                                                                          true)]} true))
-;      ;; - keyword
-;      (testing "[s err settings]: invalid: keyword is 1 digit number"
-;        (perform-validate-string-as-keyword-test "1" err {} err))
-;      (testing "[s err settings]: invalid: keyword is 2 digit number"
-;        (perform-validate-string-as-keyword-test "12" err {} err))
-;      (testing "[s err settings]: invalid: keyword has leading dash"
-;        (perform-validate-string-as-keyword-test "-abc" err {} err))
-;      (testing "[s err settings]: invalid: keyword has leading underscore"
-;        (perform-validate-string-as-keyword-test "_abc" err {} err))
-;      (testing "[s err settings]: invalid: keyword has a space"
-;        (perform-validate-string-as-keyword-test "abc def" err {} err))
-;      (testing "[s err settings]: invalid: keyword has a colon"
-;        (perform-validate-string-as-keyword-test "abc:def" err {} err))
-;      (testing "[s err settings]: invalid: keyword has a forward slash"
-;        (perform-validate-string-as-keyword-test "abc/def" err {} err))
-;      (testing "[s err settings]: valid: keyword single character"
-;        (perform-validate-string-as-keyword-test "a" err {} true))
-;      (testing "[s err settings]: valid: keyword multi character"
-;        (perform-validate-string-as-keyword-test "ab" err {} true)))))
-;
-;
-;(defn perform-validate-number-test
-;  [n err settings expected]
-;  (let [actual (cond
-;                 settings (checks/validate-number n err settings)
-;                 err (checks/validate-number n err)
-;                 :else (checks/validate-number n))]
-;    (is (= actual expected))))
-;
-;(deftest validate-number-test
-;  ;;
-;  ;; [n] form
-;  (testing "[s]: invalid: n is nil"
-;    (perform-validate-number-test nil nil nil false))
-;  (testing "[s]: invalid: n is not a number"
-;    (perform-validate-number-test "1" nil nil false))
-;  (testing "[s]: valid: number"
-;    (perform-validate-number-test 1 nil nil true))
-;  ;;
-;  ;; [n err] form
-;  (let [err "Invalid number"]
-;    (testing "[n err]: invalid: n is nil"
-;      (perform-validate-number-test nil err nil err))
-;    (testing "[n err]: invalid: n is not a number"
-;      (perform-validate-number-test "1" err nil err))
-;    (testing "[n err]: valid: number"
-;      (perform-validate-number-test 1 err nil true)))
-;  ;;
-;  ;; [n err settings] form
-;  (let [err "Invalid number"]
-;    ;; - w/ empty settings
-;    (testing "[n err settings]: invalid: n is nil"
-;      (perform-validate-number-test nil err {} err))
-;    (testing "[n err settings]: invalid: n is not a number"
-;      (perform-validate-number-test "1" err {} err))
-;    (testing "[n err settings]: valid: number"
-;      (perform-validate-number-test 1 err {} true))
-;    ;; - w/ settings define
-;    (testing "[n err settings]: invalid: set ':nil-ok' to 'false', n is nil"
-;      (perform-validate-number-test nil err {:nil-ok false} err))
-;    (testing "[n err settings]: valid: set ':nil-ok' to 'true', n is nil"
-;      (perform-validate-number-test nil err {:nil-ok true} true))
-;    ;; - w/ type
-;    (testing "[n err settings]: invalid: set ':type' to ':int'"
-;      (perform-validate-number-test 1.0 err {:type :int} err))
-;    (testing "[n err settings]: valid: set ':type' to ':int'"
-;      (perform-validate-number-test 1 err {:type :int} true))
-;    (testing "[n err settings]: invalid: set ':type' to ':float'"
-;      (perform-validate-number-test 123456789 err {:type :float} err))
-;    (testing "[n err settings]: valid: set ':type' to ':float'"
-;      (perform-validate-number-test 1.0 err {:type :float} true))
-;    (testing "[n err settings]: invalid: set ':type' to ':double'"
-;      (perform-validate-number-test (bigdec "1e400") err {:type :double} err))
-;    (testing "[n err settings]: valid: set ':type' to ':double'"
-;      (perform-validate-number-test 1.23456789012345 err {:type :double} true))
-;    (testing "[n err settings]: invalid: set ':type' to ':decimal'"
-;      (perform-validate-number-test 1/3 err {:type :decimal} err))
-;    (testing "[n err settings]: valid: set ':type' to ':decimal'"
-;      (perform-validate-number-test 0.1M err {:type :decimal} true))
-;    (testing "[n err settings]: invalid: set ':type' to ':ratio'"
-;      (perform-validate-number-test 1 err {:type :ratio} err))
-;    (testing "[n err settings]: valid: set ':type' to ':ratio'"
-;      (perform-validate-number-test 1/3 err {:type :ratio} true))))
+(deftest string?-nil-handling
+  (testing "nil is invalid by default"
+    (is (false? (basic/string? nil))))
+  (testing "nil is valid when :nil-ok true"
+    (is (true? (basic/string? nil {:nil-ok true})))))
+
+
+(deftest string?-type-check
+  (testing "non-string returns false regardless of :nil-ok"
+    (is (false? (basic/string? 42)))
+    (is (false? (basic/string? 42 {:nil-ok true})))))
+
+
+(deftest string?-length-bounds
+  (testing ":min enforces minimum length"
+    (is (false? (basic/string? "ab" {:min 3})))
+    (is (true? (basic/string? "abc" {:min 3}))))
+  (testing ":max enforces maximum length"
+    (is (true? (basic/string? "abc" {:max 3})))
+    (is (false? (basic/string? "abcd" {:max 3})))))
+
+
+(deftest string?-regex-whole
+  (let [alpha (re-pattern "^[A-Za-z]+$")]
+    (testing "whole-string pattern must match (single)"
+      (is (true? (basic/string? "abc" {:pat-or-pats-whole alpha})))
+      (is (false? (basic/string? "abc123" {:pat-or-pats-whole alpha}))))
+    (testing "whole-string patterns must all match (collection)"
+      (let [alpha-num (re-pattern "^[A-Za-z0-9]+$")]
+        (is (true? (basic/string? "abc123" {:pat-or-pats-whole [alpha-num]})))
+        (is (false? (basic/string? "abc123" {:pat-or-pats-whole [alpha]})))))))
+
+
+(deftest string?-regex-substr
+  (let [digits (re-pattern "[0-9]+")
+        letters (re-pattern "[A-Za-z]+")]
+    (testing "substring pattern must be found"
+      (is (true? (basic/string? "a123b" {:pat-or-pats-sub digits})))
+      (is (false? (basic/string? "----" {:pat-or-pats-sub digits}))))
+    (testing "all substring patterns must be found (collection)"
+      (is (true? (basic/string? "abc123" {:pat-or-pats-sub [digits letters]})))
+      (is (false? (basic/string? "123---" {:pat-or-pats-sub [digits letters]}))))))
+
+
+(deftest string?-custom-predicates
+  (testing "single predicate"
+    (is (true? (basic/string? "abc" {:fn-or-fns #(>= (count %) 3)})))
+    (is (false? (basic/string? "ab" {:fn-or-fns #(>= (count %) 3)}))))
+  (testing "collection of predicates (all must pass)"
+    (is (true?
+          (basic/string? "abc"
+                         {:fn-or-fns [#(>= (count %) 3)
+                                      #(re-find #"[a-c]" %)]})))
+    (is (false?
+          (basic/string? "ab"
+                         {:fn-or-fns [#(>= (count %) 3)
+                                      #(re-find #"[a-c]" %)]})))))
+
+
+;; ---------------------------------------------------------------------------
+;; string-explain (first failure)
+;; ---------------------------------------------------------------------------
+
+(deftest string-explain-nil-handling
+  (testing "nil without :nil-ok -> error"
+    (let [res (basic/string-explain nil)]
+      (is (false? (:valid? res)))
+      (is (= :string/nil (:code res)))
+      (is (= "Value is nil." (:message res)))
+      (is (nil? (:value res)))))
+  (testing "nil with :nil-ok -> valid"
+    (is (= {:valid? true :value nil}
+           (basic/string-explain nil {:nil-ok true})))))
+
+
+(deftest string-explain-type-check
+  (let [res (basic/string-explain 42)]
+    (is (false? (:valid? res)))
+    (is (= :type/not-string (:code res)))
+    (is (string? (:message res)))                           ; message includes type info
+    (is (= 42 (:value res)))))
+
+
+(deftest string-explain-length
+  (testing "too short"
+    (let [res (basic/string-explain "ab" {:min 3})]
+      (is (false? (:valid? res)))
+      (is (= :string/too-short (:code res)))
+      (is (= {:min 3} (:expected res)))))
+  (testing "too long"
+    (let [res (basic/string-explain "abcd" {:max 3})]
+      (is (false? (:valid? res)))
+      (is (= :string/too-long (:code res)))
+      (is (= {:max 3} (:expected res))))))
+
+
+(deftest string-explain-regex-whole
+  (let [alpha (re-pattern "^[A-Za-z]+$")
+        res (basic/string-explain "abc123" {:pat-or-pats-whole alpha})]
+    (is (false? (:valid? res)))
+    (is (= :string/regex-whole-failed (:code res)))
+    (is (= "Whole-string pattern(s) failed." (:message res)))
+    ;; expected contains the pattern strings
+    (is (= [(.pattern alpha)]
+           (get-in res [:expected :regex])))))
+
+
+(deftest string-explain-regex-substr
+  (let [digits (re-pattern "[0-9]+")
+        res (basic/string-explain "----" {:pat-or-pats-sub digits})]
+    (is (false? (:valid? res)))
+    (is (= :string/regex-substr-failed (:code res)))
+    (is (= "Substring pattern(s) failed." (:message res)))
+    (is (= [(.pattern digits)]
+           (get-in res [:expected :regex])))))
+
+
+(deftest string-explain-custom-predicate
+  (let [res (basic/string-explain "ab" {:fn-or-fns #(>= (count %) 3)})]
+    (is (false? (:valid? res)))
+    (is (= :string/predicate-failed (:code res)))
+    (is (= "Custom predicate(s) returned false." (:message res)))))
+
+(deftest string-explain-success
+  (let [alpha (re-pattern "^[A-Za-z]+$")
+        res (basic/string-explain "Abc"
+                                  {:min               1
+                                   :max               5
+                                   :pat-or-pats-whole alpha
+                                   :fn-or-fns         #(Character/isUpperCase ^char (.charAt % 0))})]
+    (is (= {:valid? true :value "Abc"} res))))
+
+
+;; -----------------------------------------------------------------------------
+;; string-as-keyword?  (boolean predicate)
+;; -----------------------------------------------------------------------------
+
+(deftest string-as-keyword?-nil-handling
+  (testing "nil invalid by default"
+    (is (false? (basic/string-as-keyword? nil))))
+  (testing "nil valid when :nil-ok true"
+    (is (true? (basic/string-as-keyword? nil {:nil-ok true})))))
+
+
+(deftest string-as-keyword?-type-and-length
+  (testing "non-string -> false"
+    (is (false? (basic/string-as-keyword? 42))))
+  (testing "min defaults to 1 (empty string invalid)"
+    (is (false? (basic/string-as-keyword? "")))
+    (is (true?  (basic/string-as-keyword? "a"))))
+  (testing ":min is clamped to at least 1"
+    (is (false? (basic/string-as-keyword? "" {:min 0})))
+    (is (true?  (basic/string-as-keyword? "a" {:min 0}))))
+  (testing ":max works via base string checks"
+    (is (true?  (basic/string-as-keyword? "ab" {:max 2})))
+    (is (false? (basic/string-as-keyword? "abc" {:max 2})))))
+
+
+(deftest string-as-keyword?-regex-rules
+  (testing "must start with a letter"
+    (is (false? (basic/string-as-keyword? "1abc")))
+    (is (true?  (basic/string-as-keyword? "a1bc"))))
+  (testing "allows letters, digits, underscore, and hyphen after first char"
+    (is (true?  (basic/string-as-keyword? "Abc_123-xyz")))
+    (is (true?  (basic/string-as-keyword? "z-9_"))))
+  (testing "disallows colon, slash, and spaces"
+    (is (false? (basic/string-as-keyword? "ab:c")))
+    (is (false? (basic/string-as-keyword? "ab/c")))
+    (is (false? (basic/string-as-keyword? "ab c")))))
+
+
+;; -----------------------------------------------------------------------------
+;; string-as-keyword-explain (first failure)
+;; -----------------------------------------------------------------------------
+
+(deftest string-as-keyword-explain-nil-handling
+  (testing "nil without :nil-ok -> error"
+    (let [res (basic/string-as-keyword-explain nil)]
+      (is (false? (:valid? res)))
+      (is (= :string/nil (:code res)))
+      (is (= "Value is nil." (:message res)))
+      (is (nil? (:value res)))))
+  (testing "nil with :nil-ok -> valid"
+    (is (= {:valid? true :value nil}
+           (basic/string-as-keyword-explain nil {:nil-ok true})))))
+
+
+(deftest string-as-keyword-explain-type-and-length
+  (testing "non-string -> type error"
+    (let [res (basic/string-as-keyword-explain 42)]
+      (is (false? (:valid? res)))
+      (is (= :type/not-string (:code res)))
+      (is (string? (:message res)))))
+  (testing "min defaults to 1 (empty string -> too-short)"
+    (let [res (basic/string-as-keyword-explain "")]
+      (is (false? (:valid? res)))
+      (is (= :string/too-short (:code res)))
+      (is (= {:min 1} (:expected res))))))
+
+
+(deftest string-as-keyword-explain-regex
+  (testing "not keyword-safe (starts with digit)"
+    (let [res (basic/string-as-keyword-explain "1abc")]
+      (is (false? (:valid? res)))
+      (is (= :string/not-keyword-safe (:code res)))
+      (is (re-find #"Not keyword-safe" (:message res)))
+      ;; expected contains the keyword-safe regex pattern string
+      (is (= [(.pattern basic/valid-string-as-keyword-pattern)]
+             (get-in res [:expected :regex])))))
+  (testing "keyword-safe passes"
+    (is (= {:valid? true :value "Abc_123"}
+           (basic/string-as-keyword-explain "Abc_123")))))
+
+
+(deftest string-as-keyword-explain-respects-max-and-fns
+  (testing ":max error bubbles from base string checks"
+    (let [res (basic/string-as-keyword-explain "abcd" {:max 3})]
+      (is (false? (:valid? res)))
+      (is (= :string/too-long (:code res)))))
+  (testing "custom predicate failure returned"
+    (let [res (basic/string-as-keyword-explain "ab"
+                                               {:fn-or-fns #(>= (count %) 3)})]
+      (is (false? (:valid? res)))
+      (is (= :string/predicate-failed (:code res))))))
+
+
+;; -----------------------------------------------------------------------------
+;; number? predicate
+;; -----------------------------------------------------------------------------
+
+(deftest number?-nil-handling
+  (testing "nil is invalid by default"
+    (is (false? (basic/number? nil))))
+  (testing "nil is valid when :nil-ok true"
+    (is (true? (basic/number? nil {:nil-ok true})))))
+
+
+(deftest number?-type-check
+  (testing "non-number returns false"
+    (is (false? (basic/number? "42")))))
+
+
+(deftest number?-type-option
+  (testing ":int matches integers (Long/BigInt)"
+    (is (true?  (basic/number? 1 {:type :int})))
+    (is (true?  (basic/number? 1N {:type :int})))
+    (is (false? (basic/number? 1.0 {:type :int}))))
+  (testing ":float matches java.lang.Float only"
+    (is (true?  (basic/number? (float 1.0) {:type :float})))
+    (is (false? (basic/number? 1.0  {:type :float}))))
+  (testing ":double matches Double"
+    (is (true?  (basic/number? 1.0 {:type :double})))
+    (is (false? (basic/number? (float 1.0) {:type :double}))))
+  (testing ":decimal matches BigDecimal"
+    (is (true?  (basic/number? (bigdec "1.0") {:type :decimal})))
+    (is (false? (basic/number? 1.0 {:type :decimal}))))
+  (testing ":ratio matches clojure.lang.Ratio"
+    (is (true?  (basic/number? 22/7 {:type :ratio})))
+    (is (false? (basic/number? 3 {:type :ratio})))))
+
+
+(deftest number?-min-max
+  (testing ":min is inclusive"
+    (is (true?  (basic/number? 10 {:min 10})))
+    (is (false? (basic/number? 9  {:min 10}))))
+  (testing ":max is inclusive"
+    (is (true?  (basic/number? 10 {:max 10})))
+    (is (false? (basic/number? 11 {:max 10}))))
+  (testing "both :min and :max"
+    (is (true?  (basic/number? 5 {:min 1 :max 10})))
+    (is (false? (basic/number? 0 {:min 1 :max 10})))
+    (is (false? (basic/number? 11 {:min 1 :max 10})))))
+
+
+(deftest number?-custom-predicates
+  (testing "single predicate"
+    (is (true?  (basic/number? 4 {:fn-or-fns #(even? %)})))
+    (is (false? (basic/number? 5 {:fn-or-fns #(even? %)}))))
+  (testing "collection of predicates (all must pass)"
+    (is (true?
+          (basic/number? 8 {:fn-or-fns [#(pos? %)
+                                        #(zero? (mod % 2))]})))
+    (is (false?
+          (basic/number? -2 {:fn-or-fns [#(pos? %)
+                                         #(zero? (mod % 2))]})))))
+
+
+;; -----------------------------------------------------------------------------
+;; number-explain (first failure)
+;; -----------------------------------------------------------------------------
+
+(deftest number-explain-nil-handling
+  (testing "nil without :nil-ok -> error"
+    (let [res (basic/number-explain nil)]
+      (is (false? (:valid? res)))
+      (is (= :number/nil (:code res)))
+      (is (= "Value is nil." (:message res)))
+      (is (nil? (:value res)))))
+  (testing "nil with :nil-ok -> valid"
+    (is (= {:valid? true :value nil}
+           (basic/number-explain nil {:nil-ok true})))))
+
+
+(deftest number-explain-type-check
+  (let [res (basic/number-explain "42")]
+    (is (false? (:valid? res)))
+    (is (= :type/not-number (:code res)))
+    (is (string? (:message res)))
+    (is (= "42" (:value res)))))
+
+
+(deftest number-explain-type-option
+  (testing "wrong requested type -> error with expected"
+    (let [res (basic/number-explain 1.0 {:type :int})]
+      (is (false? (:valid? res)))
+      (is (= :number/wrong-type (:code res)))
+      (is (= {:type :int} (:expected res)))))
+  (testing "correct requested type -> ok"
+    (is (= {:valid? true :value 1.0}
+           (basic/number-explain 1.0 {:type :double})))))
+
+
+(deftest number-explain-min-max
+  (testing "too small -> :number/too-small"
+    (let [res (basic/number-explain 9 {:min 10})]
+      (is (false? (:valid? res)))
+      (is (= :number/too-small (:code res)))
+      (is (= {:min 10} (:expected res)))))
+  (testing "too large -> :number/too-large"
+    (let [res (basic/number-explain 11 {:max 10})]
+      (is (false? (:valid? res)))
+      (is (= :number/too-large (:code res)))
+      (is (= {:max 10} (:expected res)))))
+  (testing "bounds inclusive -> ok"
+    (is (= {:valid? true :value 10}
+           (basic/number-explain 10 {:min 10 :max 10})))))
+
+
+(deftest number-explain-custom-predicate
+  (testing "predicate failure reported"
+    (let [res (basic/number-explain 5 {:fn-or-fns #(even? %)})]
+      (is (false? (:valid? res)))
+      (is (= :number/predicate-failed (:code res)))
+      (is (= "Custom predicate(s) returned false." (:message res)))))
+  (testing "success"
+    (is (= {:valid? true :value 6}
+           (basic/number-explain 6 {:fn-or-fns [#(pos? %) #(zero? (mod % 3))]})))))

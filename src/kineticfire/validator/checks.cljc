@@ -24,13 +24,8 @@
 
 
 ;; 'basic' re-imports
-(def validate-string basic/validate-string)
-;;(def validate-string-explain basic/validate-string-explain)
-(def validate-string-as-keyword basic/validate-string-as-keyword)
-;;(def validate-string-as-keyword-explain basic/validate-string-as-keyword-explain)
-(def validate-number basic/validate-number)
-;;(def validate-number-explain basic/validate-number-explain)
-
+(def validate-string basic/string?)
+(def validate-string basic/string-explain)
 
 
 ;;todo
