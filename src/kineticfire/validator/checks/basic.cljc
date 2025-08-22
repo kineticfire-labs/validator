@@ -354,3 +354,147 @@
 
          :else
          {:valid? true :value n})))))
+
+(defn- match-collection-type?
+  "Return true if `c` matches the requested collection type keyword."
+  [c t]
+  (case t
+    :vec (vector? c)
+    :list (list? c)
+    :set (set? c)
+    :map (map? c)
+    :seq (sequential? c)
+    :assoc (associative? c)
+    (boolean (coll? c))))
+
+
+(defn- has-duplicates?
+  "Return true if collection has duplicate values."
+  [c]
+  (when (and (coll? c) (not (map? c)) (not (set? c)))
+    (not= (count c) (count (distinct c)))))
+
+
+(defn- has-nil-values?
+  "Return true if collection contains nil values."
+  [c]
+  (when (coll? c)
+    (if (map? c)
+      (or (some nil? (keys c)) (some nil? (vals c)))
+      (some nil? c))))
+
+
+(defn collection?
+  "Boolean predicate that validates a collection `c` with optional `settings`.
+
+   Settings:
+     :nil-ok        boolean  allow nil as valid (default: false)
+     :min           integer  minimum count (inclusive, optional)
+     :max           integer  maximum count (inclusive, optional)
+     :type          keyword  collection type constraint (optional)
+                             one of #{:vec :list :set :map :seq :assoc}
+     :duplicates-ok boolean  allow duplicate values (default: true)
+     :nil-value-ok  boolean  allow nil values within collection (default: true)
+     :fn-or-fns     (fn [c] ...) | Collection<(fn [c] ...)>; each must return truthy
+
+   Returns true iff all configured checks pass."
+  ([c] (collection? c {}))
+  ([c {:keys [nil-ok min max type duplicates-ok nil-value-ok fn-or-fns]
+       :or   {nil-ok false duplicates-ok true nil-value-ok true}}]
+   (cond
+     (nil? c) nil-ok
+     (not (coll? c)) false
+     :else
+     (let [cnt (count c)]
+       (and
+         ;; type constraint (if provided)
+         (if (some? type) (match-collection-type? c type) true)
+         ;; min/max (if provided)
+         (if (some? min) (<= min cnt) true)
+         (if (some? max) (<= cnt max) true)
+         ;; duplicates check
+         (if duplicates-ok true (not (has-duplicates? c)))
+         ;; nil values check
+         (if nil-value-ok true (not (has-nil-values? c)))
+         ;; custom predicates (all must be truthy)
+         (let [fs (->fns fn-or-fns)]
+           (if fs (every? #(boolean (% c)) fs) true)))))))
+
+
+(defn collection-explain
+  "Explain-style validator for collections. Returns either
+     {:valid? true :value c}
+   or the first failure as
+     {:valid? false
+      :code <kw> :message <str>
+      :value c
+      :expected <optional-map>}.
+
+   Settings identical to `collection?`."
+  ([c] (collection-explain c {}))
+  ([c {:keys [nil-ok min max type duplicates-ok nil-value-ok fn-or-fns]
+       :or   {nil-ok false duplicates-ok true nil-value-ok true}}]
+   (cond
+     ;; nil handling
+     (nil? c)
+     (if nil-ok
+       {:valid? true :value c}
+       {:valid? false :code :collection/nil :message "Value is nil." :value c})
+
+     ;; type check (must be a collection first)
+     (not (coll? c))
+     {:valid?  false
+      :code    :type/not-collection
+      :message (str "Expected collection, got " (some-> c class .getName) ".")
+      :value   c}
+
+     ;; type constraint (if provided)
+     (and (some? type) (not (match-collection-type? c type)))
+     {:valid?   false
+      :code     :collection/wrong-type
+      :message  (str "Collection is not of requested type " type ".")
+      :expected {:type type}
+      :value    c}
+
+     ;; min/max
+     :else
+     (let [cnt (count c)]
+       (cond
+         (and (some? min) (< cnt min))
+         {:valid?   false
+          :code     :collection/too-small
+          :message  (str "Collection smaller than min count " min ".")
+          :expected {:min min}
+          :value    c}
+
+         (and (some? max) (> cnt max))
+         {:valid?   false
+          :code     :collection/too-large
+          :message  (str "Collection larger than max count " max ".")
+          :expected {:max max}
+          :value    c}
+
+         (and (not duplicates-ok) (has-duplicates? c))
+         {:valid?  false
+          :code    :collection/duplicates-found
+          :message "Collection contains duplicate values."
+          :value   c}
+
+         (and (not nil-value-ok) (has-nil-values? c))
+         {:valid?  false
+          :code    :collection/nil-values-found
+          :message "Collection contains nil values."
+          :value   c}
+
+         ;; custom predicates (first failure)
+         :else
+         (let [fs (->fns fn-or-fns)]
+           (cond
+             (and fs (not (every? #(boolean (% c)) fs)))
+             {:valid?  false
+              :code    :collection/predicate-failed
+              :message "Custom predicate(s) returned false."
+              :value   c}
+
+             :else
+             {:valid? true :value c})))))))

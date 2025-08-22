@@ -375,3 +375,179 @@
   (testing "success"
     (is (= {:valid? true :value 6}
            (basic/number-explain 6 {:fn-or-fns [#(pos? %) #(zero? (mod % 3))]})))))
+
+
+;; ---------------------------------------------------------------------------
+;; collection? predicate
+;; ---------------------------------------------------------------------------
+
+(deftest collection?-nil-handling
+  (testing "nil is invalid by default"
+    (is (false? (basic/collection? nil))))
+  (testing "nil is valid when :nil-ok true"
+    (is (true? (basic/collection? nil {:nil-ok true})))))
+
+
+(deftest collection?-type-check
+  (testing "non-collection returns false"
+    (is (false? (basic/collection? 42)))
+    (is (false? (basic/collection? "string")))
+    (is (false? (basic/collection? true))))
+  (testing "collections return true"
+    (is (true? (basic/collection? [])))
+    (is (true? (basic/collection? '())))
+    (is (true? (basic/collection? #{})))
+    (is (true? (basic/collection? {})))))
+
+
+(deftest collection?-type-constraint
+  (testing ":vec type constraint"
+    (is (true? (basic/collection? [1 2 3] {:type :vec})))
+    (is (false? (basic/collection? '(1 2 3) {:type :vec}))))
+  (testing ":list type constraint"
+    (is (true? (basic/collection? '(1 2 3) {:type :list})))
+    (is (false? (basic/collection? [1 2 3] {:type :list}))))
+  (testing ":set type constraint"
+    (is (true? (basic/collection? #{1 2 3} {:type :set})))
+    (is (false? (basic/collection? [1 2 3] {:type :set}))))
+  (testing ":map type constraint"
+    (is (true? (basic/collection? {:a 1} {:type :map})))
+    (is (false? (basic/collection? [1 2 3] {:type :map}))))
+  (testing ":seq type constraint"
+    (is (true? (basic/collection? [1 2 3] {:type :seq})))
+    (is (true? (basic/collection? '(1 2 3) {:type :seq})))
+    (is (false? (basic/collection? #{1 2 3} {:type :seq}))))
+  (testing ":assoc type constraint"
+    (is (true? (basic/collection? {:a 1} {:type :assoc})))
+    (is (true? (basic/collection? [1 2 3] {:type :assoc})))
+    (is (false? (basic/collection? '(1 2 3) {:type :assoc})))))
+
+
+(deftest collection?-count-bounds
+  (testing ":min enforces minimum count"
+    (is (false? (basic/collection? [1 2] {:min 3})))
+    (is (true? (basic/collection? [1 2 3] {:min 3}))))
+  (testing ":max enforces maximum count"
+    (is (true? (basic/collection? [1 2 3] {:max 3})))
+    (is (false? (basic/collection? [1 2 3 4] {:max 3}))))
+  (testing "empty collections and :min 0"
+    (is (true? (basic/collection? [] {:min 0})))
+    (is (false? (basic/collection? [] {:min 1})))))
+
+
+(deftest collection?-duplicates
+  (testing "duplicates allowed by default"
+    (is (true? (basic/collection? [1 2 2 3])))
+    (is (true? (basic/collection? [1 2 2 3] {:duplicates-ok true}))))
+  (testing "duplicates forbidden when :duplicates-ok false"
+    (is (false? (basic/collection? [1 2 2 3] {:duplicates-ok false})))
+    (is (true? (basic/collection? [1 2 3 4] {:duplicates-ok false}))))
+  (testing "maps not checked for duplicates"
+    (is (true? (basic/collection? {:a 1 :b 1} {:duplicates-ok false}))))
+  (testing "sets cannot have duplicates"
+    (is (true? (basic/collection? #{1 2 3} {:duplicates-ok false})))))
+
+
+(deftest collection?-nil-values
+  (testing "nil values allowed by default"
+    (is (true? (basic/collection? [1 nil 3])))
+    (is (true? (basic/collection? [1 nil 3] {:nil-value-ok true}))))
+  (testing "nil values forbidden when :nil-value-ok false"
+    (is (false? (basic/collection? [1 nil 3] {:nil-value-ok false})))
+    (is (true? (basic/collection? [1 2 3] {:nil-value-ok false}))))
+  (testing "nil values in maps"
+    (is (false? (basic/collection? {:a nil} {:nil-value-ok false})))
+    (is (false? (basic/collection? {nil :b} {:nil-value-ok false})))
+    (is (true? (basic/collection? {:a 1} {:nil-value-ok false})))))
+
+
+(deftest collection?-custom-predicates
+  (testing "single predicate"
+    (is (true? (basic/collection? [2 4 6] {:fn-or-fns #(every? even? %)})))
+    (is (false? (basic/collection? [1 2 3] {:fn-or-fns #(every? even? %)}))))
+  (testing "multiple predicates"
+    (is (true? (basic/collection? [2 4 6] {:fn-or-fns [#(every? even? %) #(> (count %) 2)]})))
+    (is (false? (basic/collection? [2 4] {:fn-or-fns [#(every? even? %) #(> (count %) 2)]})))))
+
+
+;; ---------------------------------------------------------------------------
+;; collection-explain
+;; ---------------------------------------------------------------------------
+
+(deftest collection-explain-nil-handling
+  (testing "nil invalid by default"
+    (let [res (basic/collection-explain nil)]
+      (is (false? (:valid? res)))
+      (is (= :collection/nil (:code res)))
+      (is (= "Value is nil." (:message res)))))
+  (testing "nil valid when allowed"
+    (is (= {:valid? true :value nil}
+           (basic/collection-explain nil {:nil-ok true})))))
+
+
+(deftest collection-explain-type-check
+  (testing "non-collection type error"
+    (let [res (basic/collection-explain 42)]
+      (is (false? (:valid? res)))
+      (is (= :type/not-collection (:code res)))
+      (is (re-find #"Expected collection" (:message res))))))
+
+
+(deftest collection-explain-type-constraint
+  (testing "wrong type error"
+    (let [res (basic/collection-explain [1 2 3] {:type :map})]
+      (is (false? (:valid? res)))
+      (is (= :collection/wrong-type (:code res)))
+      (is (= "Collection is not of requested type :map." (:message res)))
+      (is (= {:type :map} (:expected res))))))
+
+
+(deftest collection-explain-count-bounds
+  (testing "too small error"
+    (let [res (basic/collection-explain [1 2] {:min 3})]
+      (is (false? (:valid? res)))
+      (is (= :collection/too-small (:code res)))
+      (is (= "Collection smaller than min count 3." (:message res)))
+      (is (= {:min 3} (:expected res)))))
+  (testing "too large error"
+    (let [res (basic/collection-explain [1 2 3 4] {:max 3})]
+      (is (false? (:valid? res)))
+      (is (= :collection/too-large (:code res)))
+      (is (= "Collection larger than max count 3." (:message res)))
+      (is (= {:max 3} (:expected res))))))
+
+
+(deftest collection-explain-duplicates
+  (testing "duplicates found error"
+    (let [res (basic/collection-explain [1 2 2 3] {:duplicates-ok false})]
+      (is (false? (:valid? res)))
+      (is (= :collection/duplicates-found (:code res)))
+      (is (= "Collection contains duplicate values." (:message res))))))
+
+
+(deftest collection-explain-nil-values
+  (testing "nil values found error"
+    (let [res (basic/collection-explain [1 nil 3] {:nil-value-ok false})]
+      (is (false? (:valid? res)))
+      (is (= :collection/nil-values-found (:code res)))
+      (is (= "Collection contains nil values." (:message res))))))
+
+
+(deftest collection-explain-custom-predicates
+  (testing "predicate failure"
+    (let [res (basic/collection-explain [1 3 5] {:fn-or-fns #(every? even? %)})]
+      (is (false? (:valid? res)))
+      (is (= :collection/predicate-failed (:code res)))
+      (is (= "Custom predicate(s) returned false." (:message res)))))
+  (testing "success"
+    (is (= {:valid? true :value [2 4 6]}
+           (basic/collection-explain [2 4 6] {:fn-or-fns #(every? even? %)})))))
+
+
+(deftest collection-explain-success
+  (testing "valid collection"
+    (is (= {:valid? true :value [1 2 3]}
+           (basic/collection-explain [1 2 3]))))
+  (testing "valid collection with all constraints"
+    (is (= {:valid? true :value [2 4 6]}
+           (basic/collection-explain [2 4 6] {:type :vec :min 2 :max 5 :duplicates-ok false :nil-value-ok false})))))

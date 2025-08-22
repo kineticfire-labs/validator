@@ -40,9 +40,9 @@
 
 (def string?        basic/string?)
 (def string-explain basic/string-explain)
-
 (def string-as-keyword?        basic/string-as-keyword?)
 (def string-as-keyword-explain basic/string-as-keyword-explain)
-
 (def number?        basic/number?)
 (def number-explain basic/number-explain)
+(def collection?        basic/collection?)
+(def collection-explain basic/collection-explain)
