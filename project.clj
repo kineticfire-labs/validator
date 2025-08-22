@@ -38,4 +38,5 @@
              :test    {:dependencies [[com.kineticfire/collections "2.1.1"]]}
              :dev {:source-paths ["examples"]}}
   :source-paths ["src"]
-  :aliases {"example" ["with-profile" "+dev" "run" "-m" "kineticfire.validator.examples.example"]})
+  :aliases {"basic"    ["with-profile" "+dev" "run" "-m" "kineticfire.validator.examples.basic"]
+            "examples" ["with-profile" "+dev" "run" "-m" "kineticfire.validator.examples.comprehensive"]})  ; deprecated, use 'basic')

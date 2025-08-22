@@ -18,30 +18,30 @@
 
 
 ;; -----------------------------------------------------------------------------
-;; Example Usage
+;; Basic Validation Examples
 ;;
-;; A comprehensive demonstration of how to use the `kineticfire.validator` library.
-;; This file shows how to:
+;; A focused demonstration of the basic validation functions from
+;; `kineticfire.validator.checks.basic`. This file shows how to:
 ;;   • validate strings with patterns, length constraints, and custom predicates
 ;;   • validate keyword-safe strings for naming conventions
 ;;   • validate numbers with type constraints, bounds, and custom checks
 ;;   • validate collections with type checking, duplicates, and nil values
 ;;   • use `result` utilities to collapse or interpret explain-style outputs
 ;;
-;; It is meant for development and documentation purposes only. This namespace
-;; is not shipped or used by the library itself.
+;; This file demonstrates only the basic validation checks. For examples of
+;; other library components like runner orchestration or result utilities,
+;; see the other files in this examples directory.
 ;;
 ;; Run from the command line using:
-;;   lein example
+;;   lein basic
 ;; or explicitly:
-;;   lein with-profile +dev run -m kineticfire.validator.examples.example
+;;   lein with-profile +dev run -m kineticfire.validator.examples.basic
 ;; -----------------------------------------------------------------------------
 
 
-(ns kineticfire.validator.examples.example
+(ns kineticfire.validator.examples.basic
   (:require
     [kineticfire.validator.checks :as checks]               ;; string?, string-explain, etc.
-    
     [kineticfire.validator.result :as result])              ;; collapse-result
   #?(:clj  (:import (java.util.regex Pattern))
      :cljs (:require [goog.string :as gstring])))
