@@ -17,6 +17,23 @@
 ;;	   Project site: https://github.com/kineticfire-labs/validator/
 
 
+;; -----------------------------------------------------------------------------
+;; Basic Checks
+;;
+;; Primitive validation functions for common types like strings, numbers, and
+;; collections.
+;;
+;; Each check comes in two forms:
+;;   - `...?` returns a simple true/false
+;;   - `...-explain` returns an explain-style map with :valid?, :code, :message,
+;;     and optional context (e.g. expected regex, bounds).
+;;
+;; These checks enforce fundamental constraints (type, length, numeric bounds,
+;; regex matches) but do not orchestrate or aggregate results— that’s handled
+;; by the runner layer.
+;; -----------------------------------------------------------------------------
+
+
 (ns kineticfire.validator.checks.basic
   (:refer-clojure :exclude [number? string?])
   (:require [clojure.core :as core]

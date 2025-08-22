@@ -17,14 +17,27 @@
 ;;	   Project site: https://github.com/kineticfire-labs/validator/
 
 
-;; An aggregator for all checks at kineticfire.validator.checks.*
+;; -----------------------------------------------------------------------------
+;; Checks (Aggregator)
+;;
+;; Central namespace that re-exports all available validation checks from
+;; `kineticfire.validator.checks.*`. This provides a single, consistent entry
+;; point for consumers of the library, so they don’t need to know which specific
+;; sub-namespace a given check belongs to.
+;;
+;; This namespace does not add new logic—it only aggregates and re-exposes
+;; functions like `string?`, `number?`, `string-explain`, etc.
+;; -----------------------------------------------------------------------------
+
 
 (ns kineticfire.validator.checks
   (:refer-clojure :exclude [string? number?])
   (:require [kineticfire.validator.checks.basic :as basic]))
 
 
+;; -----------------------------------------------------------------------------
 ;; 'basic' re-imports
+
 (def string?        basic/string?)
 (def string-explain basic/string-explain)
 

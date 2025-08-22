@@ -1,0 +1,26 @@
+{
+   "permissions": {
+      "allow": [
+         "Bash(grep:*)",
+         "Bash(echo:*)",
+         "Bash(cat:*)",
+         "Bash(pwd:*)",
+         "Bash(cd:*)",
+         "Bash(ls:*)",
+         "Bash(source:*)",
+         "Bash(find:*)",
+         "Bash(locate:*)",
+         "Bash(tree:*)",
+         "Bash(mv:*)",
+         "Bash(cp:*)",
+         "Bash(mkdir:*)",
+         "Bash(ruff check:*)",
+         "Bash(gh issue view:*)",
+         "Bash(lein:*)",
+         "Bash(bb:*)",
+         "WebFetch(domain:docs.anthropic.com*)",
+         "mcp__serena"
+      ],
+      "deny": []
+   }
+}

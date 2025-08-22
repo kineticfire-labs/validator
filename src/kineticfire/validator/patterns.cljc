@@ -17,6 +17,17 @@
 ;;	   Project site: https://github.com/kineticfire-labs/validator/
 
 
+;; -----------------------------------------------------------------------------
+;; Patterns
+;;
+;; Helpers for working with compiled regex patterns in validation contexts.
+;; Provides functions to check whether a string matches whole patterns,
+;; contains substring matches, or to return which patterns failed.
+;; This namespace does not define domain checks itself—it supplies the
+;; reusable pattern-matching utilities that other checks build on.
+;; -----------------------------------------------------------------------------
+
+
 (ns kineticfire.validator.patterns)
 
 

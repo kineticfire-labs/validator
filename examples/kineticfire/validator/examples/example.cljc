@@ -17,10 +17,23 @@
 ;;	   Project site: https://github.com/kineticfire-labs/validator/
 
 
-;; run with:
-;;    lein example
-;; or:
-;;    lein with-profile +dev run -m kineticfire.validator.examples.example
+;; -----------------------------------------------------------------------------
+;; Example Usage
+;;
+;; A simple demonstration of how to consume the `kineticfire.validator` library.
+;; This file shows how to:
+;;   • call high-level `checks` functions (e.g., `string?`, `string-explain`)
+;;   • use `runner` to orchestrate multiple validation steps
+;;   • use `result` utilities to collapse or interpret explain-style outputs
+;;
+;; It is meant for development and documentation purposes only. This namespace
+;; is not shipped or used by the library itself.
+;;
+;; Run from the command line using:
+;;   lein example
+;; or explicitly:
+;;   lein with-profile +dev run -m kineticfire.validator.examples.example
+;; -----------------------------------------------------------------------------
 
 
 (ns kineticfire.validator.examples.example
