@@ -128,6 +128,8 @@
     (println "
 Basic collection checks:")
     (println "  collection? vec:" (checks/collection? vec-data))
+    (println "  collection? list:" (checks/collection? list-data))
+    (println "  collection? set:" (checks/collection? set-data))
     (println "  collection? string:" (checks/collection? bad-data))
     (println "  collection? nil (default):" (checks/collection? nil))
     (println "  collection? nil (allowed):" (checks/collection? nil {:nil-ok true}))
