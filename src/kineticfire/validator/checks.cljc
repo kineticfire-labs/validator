@@ -46,3 +46,5 @@
 (def number-explain basic/number-explain)
 (def collection?        basic/collection?)
 (def collection-explain basic/collection-explain)
+(def map-entry?        basic/map-entry?)
+(def map-entry-explain basic/map-entry-explain)

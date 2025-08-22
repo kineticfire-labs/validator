@@ -498,3 +498,146 @@
 
              :else
              {:valid? true :value c})))))))
+
+
+(defn- get-entry-value
+  "Navigate and get value from map using single key or key sequence."
+  [m k-or-ks]
+  (if (sequential? k-or-ks)
+    (get-in m k-or-ks)
+    (get m k-or-ks)))
+
+
+(defn- entry-exists?
+  "Check if key path exists in map."
+  [m k-or-ks]
+  (if (sequential? k-or-ks)
+    (not= ::not-found (get-in m k-or-ks ::not-found))
+    (contains? m k-or-ks)))
+
+
+(defn- match-entry-type?
+  "Return true if `value` matches the requested type keyword."
+  [value t]
+  (case t
+    :string (core/string? value)
+    :number (core/number? value)
+    :boolean (boolean? value)
+    :keyword (keyword? value)
+    :col (coll? value)
+    :vec (vector? value)
+    :set (set? value)
+    :map (map? value)
+    :fn (fn? value)
+    false))
+
+
+(defn map-entry?
+  "Boolean predicate that validates a map entry `m[k-or-ks]` with optional `settings`.
+
+   Parameters:
+     m        : the map to validate the entry in
+     k-or-ks  : single key or key sequence for navigation (e.g., :name or [:user :profile :name])
+     settings : optional configuration map
+
+   Settings:
+     :nil-ok       boolean  allow map 'm' to be nil (default: false)
+     :key-required boolean  require key path to exist (default: true) 
+     :nil-value-ok boolean  allow value at key to be nil (default: false)
+     :type         keyword  basic type constraint (optional)
+                            one of #{:string :number :boolean :keyword :col :vec :set :map :fn}
+     :fn-or-fns    (fn [v] ...) | Collection<(fn [v] ...)>; each must return truthy
+
+   Returns true iff all configured checks pass."
+  ([m k-or-ks] (map-entry? m k-or-ks {}))
+  ([m k-or-ks {:keys [nil-ok key-required nil-value-ok type fn-or-fns]
+               :or   {nil-ok false key-required true nil-value-ok false}}]
+   (cond
+     (nil? m) nil-ok
+     (not (map? m)) false
+     :else
+     (let [exists? (entry-exists? m k-or-ks)
+           value (when exists? (get-entry-value m k-or-ks))]
+       (and
+         ;; key existence check
+         (if key-required exists? true)
+         ;; value nil check (only if key exists)
+         (if (and exists? (nil? value)) nil-value-ok true)
+         ;; type constraint (only if key exists and value not nil)
+         (if (and exists? (some? value) (some? type))
+           (match-entry-type? value type)
+           true)
+         ;; custom predicates (only if key exists)
+         (if (and exists? (some? value))
+           (let [fs (->fns fn-or-fns)]
+             (if fs (every? #(boolean (% value)) fs) true))
+           true))))))
+
+
+(defn map-entry-explain
+  "Explain-style validator for map entries. Returns either
+     {:valid? true :value <entry-value>}
+   or the first failure as
+     {:valid? false
+      :code <kw> :message <str>
+      :value m
+      :expected <optional-map>}.
+
+   Settings identical to `map-entry?`."
+  ([m k-or-ks] (map-entry-explain m k-or-ks {}))
+  ([m k-or-ks {:keys [nil-ok key-required nil-value-ok type fn-or-fns]
+               :or   {nil-ok false key-required true nil-value-ok false}}]
+   (cond
+     ;; nil map handling
+     (nil? m)
+     (if nil-ok
+       {:valid? true :value nil}
+       {:valid? false :code :map-entry/nil-map :message "Map is nil." :value m})
+
+     ;; type check (must be a map first)
+     (not (map? m))
+     {:valid?  false
+      :code    :map-entry/not-map
+      :message (str "Expected map, got " (some-> m class .getName) ".")
+      :value   m}
+
+     :else
+     (let [exists? (entry-exists? m k-or-ks)
+           value (when exists? (get-entry-value m k-or-ks))
+           key-path-str (if (sequential? k-or-ks) (str k-or-ks) (str k-or-ks))]
+       (cond
+         ;; key existence check
+         (and key-required (not exists?))
+         {:valid?   false
+          :code     :map-entry/key-not-found
+          :message  (str "Key path " key-path-str " not found in map.")
+          :expected {:key-path k-or-ks}
+          :value    m}
+
+         ;; value nil check (only if key exists)
+         (and exists? (nil? value) (not nil-value-ok))
+         {:valid?  false
+          :code    :map-entry/nil-value
+          :message (str "Value at key path " key-path-str " is nil.")
+          :value   m}
+
+         ;; type constraint (only if key exists and value not nil)
+         (and exists? (some? value) (some? type) (not (match-entry-type? value type)))
+         {:valid?   false
+          :code     :map-entry/wrong-type
+          :message  (str "Value is not of requested type " type ".")
+          :expected {:type type}
+          :value    m}
+
+         ;; custom predicates (only if key exists and value not nil)
+         (and exists? (some? value))
+         (let [fs (->fns fn-or-fns)]
+           (if (and fs (not (every? #(boolean (% value)) fs)))
+             {:valid?  false
+              :code    :map-entry/predicate-failed
+              :message "Custom predicate(s) returned false."
+              :value   m}
+             {:valid? true :value value}))
+
+         :else
+         {:valid? true :value value})))))

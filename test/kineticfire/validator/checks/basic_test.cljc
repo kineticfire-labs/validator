@@ -550,4 +550,224 @@
            (basic/collection-explain [1 2 3]))))
   (testing "valid collection with all constraints"
     (is (= {:valid? true :value [2 4 6]}
-           (basic/collection-explain [2 4 6] {:type :vec :min 2 :max 5 :duplicates-ok false :nil-value-ok false})))))
+           (basic/collection-explain [2 4 6] {:type :vec :min 2 :max 5 :duplicates-ok false :nil-value-ok false}))))
+
+
+;; ---------------------------------------------------------------------------
+;; map-entry? predicate
+;; ---------------------------------------------------------------------------
+
+(deftest map-entry?-nil-handling
+  (testing "nil map is invalid by default"
+    (is (false? (basic/map-entry? nil :key))))
+  (testing "nil map is valid when :nil-ok true"
+    (is (true? (basic/map-entry? nil :key {:nil-ok true})))))
+
+
+(deftest map-entry?-type-check
+  (testing "non-map returns false"
+    (is (false? (basic/map-entry? 42 :key)))
+    (is (false? (basic/map-entry? "string" :key)))
+    (is (false? (basic/map-entry? [1 2 3] :key)))))
+
+
+(deftest map-entry?-single-key-navigation
+  (let [m {:name "John" :age 30 :active true}]
+    (testing "existing key with non-nil value -> true"
+      (is (true? (basic/map-entry? m :name)))
+      (is (true? (basic/map-entry? m :age)))
+      (is (true? (basic/map-entry? m :active))))
+    (testing "missing key -> false (key required by default)"
+      (is (false? (basic/map-entry? m :missing))))
+    (testing "missing key allowed when :key-required false"
+      (is (true? (basic/map-entry? m :missing {:key-required false}))))))
+
+
+(deftest map-entry?-nested-key-navigation
+  (let [m {:user {:profile {:name "Alice" :email "alice@example.com"}}}]
+    (testing "nested key path exists -> true"
+      (is (true? (basic/map-entry? m [:user :profile :name])))
+      (is (true? (basic/map-entry? m [:user :profile :email]))))
+    (testing "partial path missing -> false"
+      (is (false? (basic/map-entry? m [:user :missing :name]))))
+    (testing "deep path missing -> false"
+      (is (false? (basic/map-entry? m [:user :profile :name :extra]))))))
+
+
+(deftest map-entry?-nil-value-handling
+  (let [m {:name "John" :title nil}]
+    (testing "nil value invalid by default"
+      (is (false? (basic/map-entry? m :title))))
+    (testing "nil value valid when :nil-value-ok true"
+      (is (true? (basic/map-entry? m :title {:nil-value-ok true}))))))
+
+
+(deftest map-entry?-type-constraints
+  (let [m {:name "Alice"
+           :age 25
+           :active true
+           :tags [:clojure :programming]
+           :profile {:email "alice@example.com"}
+           :settings #{:notifications :email}
+           :handler println}]
+    (testing ":string type constraint"
+      (is (true? (basic/map-entry? m :name {:type :string})))
+      (is (false? (basic/map-entry? m :age {:type :string}))))
+    (testing ":number type constraint"
+      (is (true? (basic/map-entry? m :age {:type :number})))
+      (is (false? (basic/map-entry? m :name {:type :number}))))
+    (testing ":boolean type constraint"
+      (is (true? (basic/map-entry? m :active {:type :boolean})))
+      (is (false? (basic/map-entry? m :name {:type :boolean}))))
+    (testing ":keyword type constraint"
+      (is (false? (basic/map-entry? m :name {:type :keyword})))
+      (is (true? (basic/map-entry? (assoc m :status :active) :status {:type :keyword}))))
+    (testing ":col type constraint"
+      (is (true? (basic/map-entry? m :tags {:type :col})))
+      (is (true? (basic/map-entry? m :settings {:type :col})))
+      (is (false? (basic/map-entry? m :name {:type :col}))))
+    (testing ":vec type constraint"
+      (is (true? (basic/map-entry? m :tags {:type :vec})))
+      (is (false? (basic/map-entry? m :settings {:type :vec}))))
+    (testing ":set type constraint"
+      (is (true? (basic/map-entry? m :settings {:type :set})))
+      (is (false? (basic/map-entry? m :tags {:type :set}))))
+    (testing ":map type constraint"
+      (is (true? (basic/map-entry? m :profile {:type :map})))
+      (is (false? (basic/map-entry? m :tags {:type :map}))))
+    (testing ":fn type constraint"
+      (is (true? (basic/map-entry? m :handler {:type :fn})))
+      (is (false? (basic/map-entry? m :name {:type :fn}))))))
+
+
+(deftest map-entry?-custom-predicates
+  (let [m {:name "Alice" :age 25 :tags ["clojure" "java"]}]
+    (testing "single predicate on string value"
+      (is (true? (basic/map-entry? m :name {:fn-or-fns #(.startsWith % "A")})))
+      (is (false? (basic/map-entry? m :name {:fn-or-fns #(.startsWith % "B")}))))
+    (testing "single predicate on number value"
+      (is (true? (basic/map-entry? m :age {:fn-or-fns #(> % 18)})))
+      (is (false? (basic/map-entry? m :age {:fn-or-fns #(> % 30)}))))
+    (testing "multiple predicates (all must pass)"
+      (is (true? (basic/map-entry? m :tags {:fn-or-fns [coll? #(> (count %) 1)]})))
+      (is (false? (basic/map-entry? m :tags {:fn-or-fns [coll? #(> (count %) 5)]}))))))
+
+
+(deftest map-entry?-settings-combinations
+  (let [m {:user {:name nil :age 25}}]
+    (testing "complex nested scenario with all settings"
+      (is (false? (basic/map-entry? m [:user :name])))  ; nil value not allowed by default
+      (is (true? (basic/map-entry? m [:user :name] {:nil-value-ok true})))  ; nil value allowed
+      (is (false? (basic/map-entry? m [:user :missing])))  ; key required by default
+      (is (true? (basic/map-entry? m [:user :missing] {:key-required false}))))))  ; key not required
+
+
+;; ---------------------------------------------------------------------------
+;; map-entry-explain
+;; ---------------------------------------------------------------------------
+
+(deftest map-entry-explain-nil-map-handling
+  (testing "nil map without :nil-ok -> error"
+    (let [res (basic/map-entry-explain nil :key)]
+      (is (false? (:valid? res)))
+      (is (= :map-entry/nil-map (:code res)))
+      (is (= "Map is nil." (:message res)))
+      (is (nil? (:value res)))))
+  (testing "nil map with :nil-ok -> valid"
+    (is (= {:valid? true :value nil}
+           (basic/map-entry-explain nil :key {:nil-ok true})))))
+
+
+(deftest map-entry-explain-type-check
+  (let [res (basic/map-entry-explain "not-a-map" :key)]
+    (is (false? (:valid? res)))
+    (is (= :map-entry/not-map (:code res)))
+    (is (re-find #"Expected map" (:message res)))
+    (is (= "not-a-map" (:value res)))))
+
+
+(deftest map-entry-explain-key-not-found
+  (let [m {:name "Alice"}
+        res (basic/map-entry-explain m :missing)]
+    (testing "key-required true (default) -> error"
+      (is (false? (:valid? res)))
+      (is (= :map-entry/key-not-found (:code res)))
+      (is (re-find #"Key path.*not found" (:message res)))
+      (is (= {:key-path :missing} (:expected res)))
+      (is (= m (:value res))))
+    (testing "nested key path not found"
+      (let [res2 (basic/map-entry-explain m [:user :name])]
+        (is (false? (:valid? res2)))
+        (is (= :map-entry/key-not-found (:code res2)))
+        (is (= {:key-path [:user :name]} (:expected res2)))))))
+
+
+(deftest map-entry-explain-nil-value
+  (let [m {:name "Alice" :title nil}
+        res (basic/map-entry-explain m :title)]
+    (testing "nil value not allowed by default -> error"
+      (is (false? (:valid? res)))
+      (is (= :map-entry/nil-value (:code res)))
+      (is (re-find #"Value at key path.*is nil" (:message res)))
+      (is (= m (:value res))))
+    (testing "nil value allowed -> valid"
+      (is (= {:valid? true :value nil}
+             (basic/map-entry-explain m :title {:nil-value-ok true}))))))
+
+
+(deftest map-entry-explain-wrong-type
+  (let [m {:name "Alice" :age 25}
+        res (basic/map-entry-explain m :name {:type :number})]
+    (testing "type constraint violation -> error"
+      (is (false? (:valid? res)))
+      (is (= :map-entry/wrong-type (:code res)))
+      (is (= "Value is not of requested type :number." (:message res)))
+      (is (= {:type :number} (:expected res)))
+      (is (= m (:value res))))
+    (testing "correct type -> valid"
+      (is (= {:valid? true :value 25}
+             (basic/map-entry-explain m :age {:type :number}))))))
+
+
+(deftest map-entry-explain-predicate-failure
+  (let [m {:name "Alice" :age 15}
+        res (basic/map-entry-explain m :age {:fn-or-fns #(>= % 18)})]
+    (testing "predicate failure -> error"
+      (is (false? (:valid? res)))
+      (is (= :map-entry/predicate-failed (:code res)))
+      (is (= "Custom predicate(s) returned false." (:message res)))
+      (is (= m (:value res))))
+    (testing "predicate success -> valid"
+      (is (= {:valid? true :value 25}
+             (basic/map-entry-explain {:age 25} :age {:fn-or-fns #(>= % 18)}))))))
+
+
+(deftest map-entry-explain-success-cases
+  (testing "simple success"
+    (let [m {:name "Alice"}]
+      (is (= {:valid? true :value "Alice"}
+             (basic/map-entry-explain m :name)))))
+  (testing "nested success"
+    (let [m {:user {:profile {:name "Bob"}}}]
+      (is (= {:valid? true :value "Bob"}
+             (basic/map-entry-explain m [:user :profile :name])))))
+  (testing "success with all constraints"
+    (let [m {:tags ["clojure" "programming"]}]
+      (is (= {:valid? true :value ["clojure" "programming"]}
+             (basic/map-entry-explain m :tags {:type :vec :fn-or-fns #(> (count %) 1)}))))))
+
+
+(deftest map-entry-explain-edge-cases
+  (testing "empty map"
+    (let [res (basic/map-entry-explain {} :key)]
+      (is (false? (:valid? res)))
+      (is (= :map-entry/key-not-found (:code res)))))
+  (testing "key-required false with missing key -> valid"
+    (is (= {:valid? true :value nil}
+           (basic/map-entry-explain {} :missing {:key-required false}))))
+  (testing "deeply nested missing path"
+    (let [m {:a {:b {}}}
+          res (basic/map-entry-explain m [:a :b :c :d])]
+      (is (false? (:valid? res)))
+      (is (= :map-entry/key-not-found (:code res)))
+      (is (= {:key-path [:a :b :c :d]} (:expected res)))))))

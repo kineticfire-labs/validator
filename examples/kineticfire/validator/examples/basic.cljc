@@ -252,9 +252,85 @@ Collapse result:")
              (result/collapse-result (checks/collection-explain bad-data) "Invalid collection"))))
 
 
+(defn demo-map-entry []
+  (println "
+
+=== Map entry validation ===")
+  (let [user-data {:name "Alice"
+                   :age 28
+                   :profile {:email "alice@example.com"
+                             :settings {:theme "dark"}}
+                   :tags ["clojure" "programming"]
+                   :active true
+                   :title nil}
+        empty-map {}
+        bad-data "not-a-map"]
+
+    (println "
+Basic map entry checks:")
+    (println "  name exists:" (checks/map-entry? user-data :name))
+    (println "  missing key:" (checks/map-entry? user-data :missing))
+    (println "  missing key (not required):" (checks/map-entry? user-data :missing {:key-required false}))
+    (println "  nil map:" (checks/map-entry? nil :key))
+    (println "  nil map (allowed):" (checks/map-entry? nil :key {:nil-ok true}))
+    (println "  non-map:" (checks/map-entry? bad-data :key))
+
+    (println "
+Nested key navigation:")
+    (println "  nested email:" (checks/map-entry? user-data [:profile :email]))
+    (println "  deep nested theme:" (checks/map-entry? user-data [:profile :settings :theme]))
+    (println "  missing nested:" (checks/map-entry? user-data [:profile :missing]))
+    (println "  partial path missing:" (checks/map-entry? user-data [:missing :email]))
+
+    (println "
+Nil value handling:")
+    (println "  nil value (default):" (checks/map-entry? user-data :title))
+    (println "  nil value (allowed):" (checks/map-entry? user-data :title {:nil-value-ok true}))
+
+    (println "
+Type constraints:")
+    (println "  name as :string:" (checks/map-entry? user-data :name {:type :string}))
+    (println "  age as :number:" (checks/map-entry? user-data :age {:type :number}))
+    (println "  active as :boolean:" (checks/map-entry? user-data :active {:type :boolean}))
+    (println "  tags as :col:" (checks/map-entry? user-data :tags {:type :col}))
+    (println "  tags as :vec:" (checks/map-entry? user-data :tags {:type :vec}))
+    (println "  profile as :map:" (checks/map-entry? user-data :profile {:type :map}))
+    (println "  name as :number (wrong):" (checks/map-entry? user-data :name {:type :number}))
+
+    (println "
+Custom predicates:")
+    (println "  name starts with 'A':" (checks/map-entry? user-data :name {:fn-or-fns #(.startsWith % "A")}))
+    (println "  age over 18:" (checks/map-entry? user-data :age {:fn-or-fns #(>= % 18)}))
+    (println "  tags has >1 item:" (checks/map-entry? user-data :tags {:fn-or-fns #(> (count %) 1)}))
+    (println "  email contains @:" (checks/map-entry? user-data [:profile :email] {:fn-or-fns #(.contains % "@")}))
+
+    (println "
+Combined constraints:")
+    (println "  age (number, >18):" 
+             (checks/map-entry? user-data :age {:type :number :fn-or-fns #(>= % 18)}))
+    (println "  tags (vec, >1 item):" 
+             (checks/map-entry? user-data :tags {:type :vec :fn-or-fns #(> (count %) 1)}))
+
+    (println "
+Explain examples:")
+    (println "  explain missing key:" (checks/map-entry-explain user-data :missing))
+    (println "  explain nil value:" (checks/map-entry-explain user-data :title))
+    (println "  explain wrong type:" (checks/map-entry-explain user-data :name {:type :number}))
+    (println "  explain predicate fail:" (checks/map-entry-explain user-data :age {:fn-or-fns #(< % 18)}))
+    (println "  explain non-map:" (checks/map-entry-explain bad-data :key))
+
+    (println "
+Collapse results:")
+    (println "  collapse (good) ->" 
+             (result/collapse-result (checks/map-entry-explain user-data :name) "Invalid entry"))
+    (println "  collapse (bad)  ->" 
+             (result/collapse-result (checks/map-entry-explain user-data :missing) "Invalid entry"))))
+
+
 #?(:clj
    (defn -main [& _args]
      (demo-string)
      (demo-string-as-keyword)
      (demo-number)
-     (demo-collection)))
+     (demo-collection)
+     (demo-map-entry)))
