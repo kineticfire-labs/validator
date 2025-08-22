@@ -113,9 +113,10 @@
              (result/collapse-result (runner/run-first v2 steps) "Invalid value"))))
 
 
-#?(:clj
 (defn demo-collection []
-  (println "\n\n=== Collection checks ===")
+  (println "
+
+=== Collection checks ===")
   (let [vec-data [1 2 3 4]
         list-data '(a b c)
         set-data #{:x :y :z}
@@ -124,39 +125,47 @@
         duplicates [1 2 2 3]
         with-nils [1 nil 3]]
 
-    (println "\nBasic collection checks:")
+    (println "
+Basic collection checks:")
     (println "  collection? vec:" (checks/collection? vec-data))
     (println "  collection? string:" (checks/collection? bad-data))
     (println "  collection? nil (default):" (checks/collection? nil))
     (println "  collection? nil (allowed):" (checks/collection? nil {:nil-ok true}))
 
-    (println "\nType-specific checks:")
+    (println "
+Type-specific checks:")
     (println "  vector as :vec:" (checks/collection? vec-data {:type :vec}))
     (println "  vector as :list:" (checks/collection? vec-data {:type :list}))
     (println "  map as :assoc:" (checks/collection? map-data {:type :assoc}))
 
-    (println "\nSize constraints:")
+    (println "
+Size constraints:")
     (println "  vec with min 3:" (checks/collection? vec-data {:min 3}))
     (println "  vec with max 3:" (checks/collection? vec-data {:max 3}))
 
-    (println "\nDuplicate and nil value checks:")
+    (println "
+Duplicate and nil value checks:")
     (println "  duplicates allowed:" (checks/collection? duplicates))
     (println "  duplicates forbidden:" (checks/collection? duplicates {:duplicates-ok false}))
     (println "  nil values allowed:" (checks/collection? with-nils))
     (println "  nil values forbidden:" (checks/collection? with-nils {:nil-value-ok false}))
 
-    (println "\nExplain examples:")
+    (println "
+Explain examples:")
     (println "  explain bad type:" (checks/collection-explain bad-data))
     (println "  explain too large:" (checks/collection-explain vec-data {:max 3}))
     (println "  explain duplicates:" (checks/collection-explain duplicates {:duplicates-ok false}))
 
     ;; Collapse example
-    (println "\nCollapse result:")
+    (println "
+Collapse result:")
     (println "  collapse (good) ->" 
              (result/collapse-result (checks/collection-explain vec-data) "Invalid collection"))
     (println "  collapse (bad)  ->" 
              (result/collapse-result (checks/collection-explain bad-data) "Invalid collection"))))
 
+
+#?(:clj
    (defn -main [& _args]
      (demo-basic)
      (demo-runner)
