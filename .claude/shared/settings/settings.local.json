@@ -1,6 +1,8 @@
 {
    "permissions": {
       "allow": [
+         "Bash(awk:*)",
+         "Bash(sed:*)",
          "Bash(grep:*)",
          "Bash(echo:*)",
          "Bash(cat:*)",

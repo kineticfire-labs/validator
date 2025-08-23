@@ -4,7 +4,9 @@
 [![Clojars Project](https://img.shields.io/clojars/v/com.kineticfire/validator.svg)](https://clojars.org/com.kineticfire/validator)
 <p></p>
 
-Streamlined data validation for [Clojure](https://clojure.org/), [ClojureScript](https://clojurescript.org/), and [Babashka](https://babashka.org/) with zero dependencies, comprehensive validation functions, and clear error reporting that keeps your code readable and maintainable.
+Streamlined data validation for [Clojure](https://clojure.org/), [ClojureScript](https://clojurescript.org/), and
+[Babashka](https://babashka.org/) with zero dependencies, comprehensive validation functions, and clear error reporting
+that keeps your code readable and maintainable.
 
 # Contents
 1. [Motivation](#motivation)
@@ -16,9 +18,12 @@ Streamlined data validation for [Clojure](https://clojure.org/), [ClojureScript]
 
 # Motivation
 
-Data validation often leads to complex, deeply nested code that becomes difficult to read and maintain. Traditional validation approaches result in code that "marches to the right" with multiple nested conditionals, making it hard to understand validation logic and error handling.
+Data validation often leads to complex, deeply nested code that becomes difficult to read and maintain. Traditional
+validation approaches result in code that "marches to the right" with multiple nested conditionals, making it hard to
+understand validation logic and error handling.
 
-The *validator* library solves this by providing a simple, consistent API for data validation that keeps your code linear and readable:
+The *validator* library solves this by providing a simple, consistent API for data validation that keeps your code
+linear and readable:
 
 ```clojure
 ;; Before: Complex, nested validation
@@ -197,12 +202,14 @@ Process and transform validation results for your application needs:
 
 ## Control Flow Integration (Optional)
 
-The [clojure-control-flow](https://github.com/kineticfire-labs/clojure-control-flow) library can help produce more efficient validation code that is more maintainable and 
-readable.  Using the threading macros such as `continue->` with validation forms, validation code will stop at the first 
-invalid form instead of continuing through all forms.  The pattern also keep code more readable vs. marching to the 
-right with each validation step.
+The [clojure-control-flow](https://github.com/kineticfire-labs/clojure-control-flow) library can help produce more
+efficient validation code that is more maintainable and readable. Using the threading macros such as `continue->` with
+validation forms, validation code will stop at the first invalid form instead of continuing through all forms. The
+pattern also keep code more readable vs. marching to the right with each validation step.
 
-**Note**: The [clojure-control-flow](https://github.com/kineticfire-labs/clojure-control-flow) library is **NOT required** to use the validator library, but can be helpful for managing complex validation workflows and preventing deeply nested validation code.
+**Note**: The [clojure-control-flow](https://github.com/kineticfire-labs/clojure-control-flow) library is **NOT required**
+to use the validator library, but can be helpful for managing complex validation workflows and preventing deeply nested
+validation code.
 
 ```clojure
 ;; Option 1: Standard approach (works perfectly with validator)
@@ -238,7 +245,8 @@ right with each validation step.
     (assoc data :validation result)))
 ```
 
-The validator library works perfectly on its own. For developers who prefer enhanced control flow, the optional integration with clojure-control-flow can help prevent "marching to the right" in complex validation scenarios.
+The validator library works perfectly on its own. For developers who prefer enhanced control flow, the optional
+integration with clojure-control-flow can help prevent "marching to the right" in complex validation scenarios.
 
 ## Examples
 
@@ -252,7 +260,8 @@ Comprehensive examples demonstrating all library features are available in the `
 
 ## Basic Checks (`kineticfire.validator.checks`)
 
-The core validation functions that form the foundation of the library. Each function comes in two forms: a boolean predicate (returns `true`/`false`) and an explain variant (returns detailed result maps).
+The core validation functions that form the foundation of the library. Each function comes in two forms: a boolean
+predicate (returns `true`/`false`) and an explain variant (returns detailed result maps).
 
 ### string?
 
@@ -331,7 +340,9 @@ Explain-style validator for strings. Returns `{:valid? true :value s}` on succes
 (string-as-keyword? s settings)
 ```
 
-Boolean predicate that validates if a string can be safely converted to a Clojure keyword. Uses the same settings as `string?` but enforces additional constraints: `:min` defaults to 1 and is clamped to at least 1, and the string must match the keyword-safe pattern `^[a-zA-Z][a-zA-Z0-9_-]*$`.
+Boolean predicate that validates if a string can be safely converted to a Clojure keyword. Uses the same settings as
+`string?` but enforces additional constraints: `:min` defaults to 1 and is clamped to at least 1, and the string must
+match the keyword-safe pattern `^[a-zA-Z][a-zA-Z0-9_-]*$`.
 
 ```clojure
 (string-as-keyword? "valid-keyword")
@@ -357,7 +368,8 @@ Boolean predicate that validates if a string can be safely converted to a Clojur
 (string-as-keyword-explain s settings)
 ```
 
-Explain-style validator for keyword-safe strings. Additional error code: `:string/not-keyword-safe` for strings that don't match the keyword pattern.
+Explain-style validator for keyword-safe strings. Additional error code: `:string/not-keyword-safe` for strings that
+don't match the keyword pattern.
 
 ```clojure
 (string-as-keyword-explain "valid-keyword")
@@ -586,7 +598,8 @@ Explain-style validator for map entries with detailed navigation and validation 
 
 ## Runner (`kineticfire.validator.runner`)
 
-The orchestration layer for executing multiple validation steps and aggregating results. Provides flexible validation workflows with different execution modes.
+The orchestration layer for executing multiple validation steps and aggregating results. Provides flexible validation
+workflows with different execution modes.
 
 ### explain
 
@@ -649,7 +662,8 @@ Run one or more validation steps against a value with configurable execution mod
 (run-all v steps defaults)
 ```
 
-Convenience function equivalent to `(explain v steps {:mode :all} defaults)`. Collects all validation errors rather than stopping at the first failure.
+Convenience function equivalent to `(explain v steps {:mode :all} defaults)`. Collects all validation errors rather
+than stopping at the first failure.
 
 ```clojure
 (run-all user-data validation-steps)
@@ -663,7 +677,8 @@ Convenience function equivalent to `(explain v steps {:mode :all} defaults)`. Co
 (run-first v steps defaults)
 ```
 
-Convenience function equivalent to `(explain v steps {:mode :first} defaults)`. Stops at the first validation failure (fail-fast mode).
+Convenience function equivalent to `(explain v steps {:mode :first} defaults)`. Stops at the first validation
+failure (fail-fast mode).
 
 ```clojure
 (run-first user-data validation-steps)
@@ -758,9 +773,11 @@ Extract error details (codes and messages) from an explain result or collection 
 
 ## Pattern Utilities (`kineticfire.validator.patterns`)
 
-Internal utilities for regex pattern matching used by the string validation functions. These are primarily for advanced use cases and internal library operations.
+Internal utilities for regex pattern matching used by the string validation functions. These are primarily for
+advanced use cases and internal library operations.
 
-The pattern utilities provide helper functions for matching regular expressions against strings in both whole-string and substring modes, supporting the flexible pattern matching capabilities used by `string?` and `string-explain`.
+The pattern utilities provide helper functions for matching regular expressions against strings in both whole-string
+and substring modes, supporting the flexible pattern matching capabilities used by `string?` and `string-explain`.
 
 # License
 
