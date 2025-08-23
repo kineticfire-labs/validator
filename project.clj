@@ -17,7 +17,7 @@
 ;;	   project site: https://github.com/kineticfire-labs/validator/
 
 
-(defproject com.kineticfire/validator "1.0.0"
+(defproject com.kineticfire/validator "1.1.0-SNAPSHOT"
   :description "Clojure/ClojureScript/Babashka validation library"
   :url "https://github.com/kineticfire-labs/validator/"
   :license {:name "Apache License, Version 2.0"
