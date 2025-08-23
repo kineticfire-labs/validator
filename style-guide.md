@@ -4,8 +4,7 @@ This defines code style for Clojure, ClojureScript, and Babashka for consumption
 
 Styles defined in this document takes precedence over other style documents to include `style-guide-bbatsov.md`.
 
-## Styles
-
+## Coding Styles
 - Exceptions must be truly exceptional and rarely thrown. 
    - Anticipate error cases through design and handle them explicitly in code. Prefer returning an error value; when 
      additional feedback is valuable (for user clarity, program reasoning, or debugging), throw a map containing keys 
@@ -15,3 +14,9 @@ Styles defined in this document takes precedence over other style documents to i
 - Annotate side-effecting functions: Any function that performs I/O, mutation, time, randomness, etc. MUST be declared 
   `^:impure` (e.g., `(defn ^:impure run-shell-command ...)`).
 - Impurity is transitive: Any function that calls a `^:impure` function MUST also be annotated `^:impure`.
+
+## Documentation Styles
+- When writing external plain-text or Markdown documentation (e.g., .txt, README.md), lines must be manually wrapped 
+  with a maximum length of 120 characters to ensure readability across tools that do not provide automatic line 
+  wrapping.
+

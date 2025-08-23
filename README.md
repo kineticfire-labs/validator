@@ -197,6 +197,11 @@ Process and transform validation results for your application needs:
 
 ## Control Flow Integration (Optional)
 
+The [clojure-control-flow](https://github.com/kineticfire-labs/clojure-control-flow) library can help produce more efficient validation code that is more maintainable and 
+readable.  Using the threading macros such as `continue->` with validation forms, validation code will stop at the first 
+invalid form instead of continuing through all forms.  The pattern also keep code more readable vs. marching to the 
+right with each validation step.
+
 **Note**: The [clojure-control-flow](https://github.com/kineticfire-labs/clojure-control-flow) library is **NOT required** to use the validator library, but can be helpful for managing complex validation workflows and preventing deeply nested validation code.
 
 ```clojure
@@ -218,7 +223,6 @@ Process and transform validation results for your application needs:
 
 (defn validate-registration [form-data]
   (continue-> form-data
-              #(get-in % [:validation :valid?] true)  ; continue condition
               (validate-username)
               (validate-email) 
               (validate-password)
