@@ -19,6 +19,7 @@
          "Bash(lein:*)",
          "Bash(bb:*)",
          "WebFetch(domain:docs.anthropic.com*)",
+         "WebFetch(domain:github.com*)",
          "mcp__serena"
       ],
       "deny": []
