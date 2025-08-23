@@ -44,18 +44,19 @@ linear and readable:
     :else
     {:valid true :data user}))
 
-;; After: Clean, readable validation with validator
+;; After: Streamlined validation with validator's run-checks
 (ns my-app.validation
   (:require [kineticfire.validator.checks :as checks]
-            [kineticfire.validator.result :as result]))
+            [kineticfire.validator.runner :as runner]))
 
 (defn validate-user [user]
-  (let [name-check (checks/string-explain (:name user) {:min 1})
-        email-check (checks/string-explain (:email user) {:pat-or-pats-sub #"@"})
-        age-check (checks/number-explain (:age user) {:type :int :min 0})]
-    (if (and (:valid? name-check) (:valid? email-check) (:valid? age-check))
+  (let [result (runner/run-checks 
+                 [#(checks/string-explain (:name user) {:min 1})
+                  #(checks/string-explain (:email user) {:pat-or-pats-sub #"@"})
+                  #(checks/number-explain (:age user) {:type :int :min 0})])]
+    (if (= true result)
       {:valid true :data user}
-      {:error "Validation failed" :details [name-check email-check age-check]})))
+      {:error "Validation failed" :details result})))
 ```
 
 Key benefits:
@@ -683,6 +684,76 @@ failure (fail-fast mode).
 ```clojure
 (run-first user-data validation-steps)
 ;;=> {:valid? false :code ... :message ... :value user-data}
+```
+
+### run-checks
+
+```clojure
+(run-checks check-fns)
+```
+
+Execute a collection of validation functions in fail-fast mode. Takes 0-arity functions that return validation results
+and stops at the first failure, returning either `true` (all pass) or the first failure result.
+
+**Parameters:**
+- `check-fns` - collection of 0-arity functions that return:
+  - Boolean values (`true`/`false`)
+  - Explain-style maps (`{:valid? true/false ...}`)
+
+**Return Values:**
+- `true` if all validations pass
+- First failure result (boolean `false` or explain-style error map)
+- Error map if empty collection provided (`{:valid? false :code :checks/no-functions ...}`)
+
+**Key Features:**
+- **Fail-fast execution** - stops at first failure for efficiency
+- **Mixed validation types** - supports both boolean and explain-style validators
+- **Streamlined syntax** - clean, readable validation chains
+- **Comprehensive error handling** - clear errors for edge cases
+
+```clojure
+;; All validations pass
+(run-checks [#(checks/string? "test" {:min 1})
+             #(checks/number? 42 {:type :int :min 0})
+             #(checks/collection? [1 2 3] {:type :vec})])
+;;=> true
+
+;; First validation fails (boolean)
+(run-checks [#(checks/string? "test" {:min 10})      ; false - too short
+             #(checks/number? 42 {:type :int})])     ; would be true
+;;=> false
+
+;; First validation fails (explain-style)
+(run-checks [#(checks/string-explain "" {:min 1})    ; explain-style failure
+             #(checks/number-explain 42)])           ; would be valid
+;;=> {:valid? false
+;;    :code :string/too-short
+;;    :message "String shorter than min length 1."
+;;    :expected {:min 1}
+;;    :value ""}
+
+;; Mixed boolean and explain-style validations
+(run-checks [#(checks/string? "test" {:min 1})       ; boolean true
+             #(checks/number-explain 42 {:type :int}) ; explain-style valid
+             #(checks/collection? [1 2 3])])         ; boolean true
+;;=> true
+
+;; User registration example
+(defn validate-user [user]
+  (runner/run-checks 
+    [#(checks/string-as-keyword-explain (:username user) {:min 3})
+     #(checks/string-explain (:email user) {:min 5 :pat-or-pats-sub #"@"})
+     #(checks/number-explain (:age user) {:type :int :min 13 :max 120})]))
+
+(validate-user {:username "john_doe" :email "john@example.com" :age 25})
+;;=> true
+
+(validate-user {:username "" :email "bad" :age 5})
+;;=> {:valid? false :code :string/too-short ...}  ; first failure
+
+;; Edge case: empty validation list
+(run-checks [])
+;;=> {:valid? false :code :checks/no-functions :message "No validation functions provided." :value []}
 ```
 
 ## Result Processing (`kineticfire.validator.result`)

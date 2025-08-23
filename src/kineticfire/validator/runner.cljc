@@ -168,3 +168,57 @@
   "Fail-fast convenience: same as (explain v steps {:mode :first} defaults)."
   ([v steps] (explain v steps {:mode :first} {}))
   ([v steps defaults] (explain v steps {:mode :first} defaults)))
+
+(defn run-checks
+  "Execute validation functions in fail-fast mode.
+   
+   Takes a collection of 0-arity functions that return validation results.
+   Executes each function in order, stopping at the first failure.
+   
+   Parameters:
+     check-fns : collection of 0-arity functions that return:
+                 • boolean (true/false)
+                 • explain-style maps ({:valid? true/false ...})
+   
+   Returns:
+     • true if all validations pass (return true or {:valid? true})  
+     • The first failure result (false or {:valid? false ...})
+     • Error map if empty collection provided
+   
+   Examples:
+     (run-checks [#(string? \"test\" {:min 1})
+                  #(number? 42 {:min 0})])
+     ;;=> true
+     
+     (run-checks [#(string-explain \"\" {:min 1})
+                  #(number-explain 42)])  
+     ;;=> {:valid? false :code :string/too-short ...}
+     
+     (run-checks [])
+     ;;=> {:valid? false :code :checks/no-functions ...}"
+  [check-fns]
+  (cond
+    ;; Handle empty collection
+    (or (nil? check-fns) (empty? check-fns))
+    {:valid? false 
+     :code :checks/no-functions 
+     :message "No validation functions provided." 
+     :value check-fns}
+    
+    :else
+    ;; Execute functions in fail-fast mode
+    (loop [fns (seq check-fns)]
+      (if-not fns
+        ;; All functions passed
+        true
+        ;; Execute next function
+        (let [result ((first fns))]
+          (cond
+            ;; Boolean false = failure
+            (false? result) result
+            
+            ;; Explain-style failure
+            (and (map? result) (false? (:valid? result))) result
+            
+            ;; Boolean true or explain-style success - continue
+            :else (recur (next fns))))))))

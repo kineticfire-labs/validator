@@ -19,7 +19,8 @@
 
 (ns kineticfire.validator.runner-test
   (:require [clojure.test :refer :all]
-            [kineticfire.validator.runner :as runner]))
+            [kineticfire.validator.runner :as runner]
+            [kineticfire.validator.checks :as checks]))
 
 
 (deftest explain-first-all-pass
@@ -153,3 +154,122 @@
                 :code :alpha/only}]]
     (is (= {:valid? true :value v}
            (runner/explain v steps {:mode :all})))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; run-checks tests
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(deftest run-checks-empty-collection
+  (testing "Empty collection returns error"
+    (let [res (runner/run-checks [])]
+      (is (= false (:valid? res)))
+      (is (= :checks/no-functions (:code res)))
+      (is (= "No validation functions provided." (:message res)))
+      (is (= [] (:value res)))))
+  (testing "Nil collection returns error"
+    (let [res (runner/run-checks nil)]
+      (is (= false (:valid? res)))
+      (is (= :checks/no-functions (:code res)))
+      (is (= "No validation functions provided." (:message res)))
+      (is (= nil (:value res))))))
+
+
+(deftest run-checks-all-boolean-true
+  (testing "All functions return true"
+    (let [res (runner/run-checks [#(string? "test")
+                                  #(number? 42)
+                                  #(coll? [1 2 3])])]
+      (is (= true res)))))
+
+
+(deftest run-checks-boolean-false-failure
+  (testing "First function returns false"
+    (let [res (runner/run-checks [#(string? 42)      ; false
+                                  #(number? 42)])]    ; would be true
+      (is (= false res))))
+  (testing "Later function returns false"
+    (let [res (runner/run-checks [#(string? "test")  ; true
+                                  #(number? "42")     ; false
+                                  #(coll? [1 2 3])])] ; would be true
+      (is (= false res)))))
+
+
+(deftest run-checks-all-explain-valid
+  (testing "All explain-style functions return valid"
+    (let [res (runner/run-checks [#(do {:valid? true :value "test"})
+                                  #(do {:valid? true :value 42})
+                                  #(do {:valid? true :value [1 2 3]})])]
+      (is (= true res)))))
+
+
+(deftest run-checks-explain-failure
+  (testing "First explain-style function fails"
+    (let [error-map {:valid? false :code :test/error :message "Test error" :value 42}
+          res (runner/run-checks [#(do error-map)
+                                  #(do {:valid? true :value "test"})])]
+      (is (= error-map res))))
+  (testing "Later explain-style function fails"
+    (let [error-map {:valid? false :code :test/error :message "Test error" :value "bad"}
+          res (runner/run-checks [#(do {:valid? true :value "test"})
+                                  #(do error-map)
+                                  #(do {:valid? true :value [1 2 3]})])]
+      (is (= error-map res)))))
+
+
+(deftest run-checks-mixed-boolean-and-explain
+  (testing "Mix of boolean and explain-style functions - all pass"
+    (let [res (runner/run-checks [#(string? "test")                           ; boolean true
+                                  #(do {:valid? true :value 42})              ; explain valid
+                                  #(coll? [1 2 3])                            ; boolean true
+                                  #(do {:valid? true :value {:a 1}})])]        ; explain valid
+      (is (= true res))))
+  (testing "Mix of boolean and explain-style functions - boolean fails"
+    (let [res (runner/run-checks [#(string? "test")                           ; boolean true
+                                  #(number? "42")                             ; boolean false
+                                  #(do {:valid? true :value [1 2 3]})])]       ; would be valid
+      (is (= false res))))
+  (testing "Mix of boolean and explain-style functions - explain fails"
+    (let [error-map {:valid? false :code :test/error :message "Test error"}
+          res (runner/run-checks [#(string? "test")                           ; boolean true
+                                  #(do error-map)                             ; explain invalid
+                                  #(coll? [1 2 3])])]                         ; would be true
+      (is (= error-map res)))))
+
+
+(deftest run-checks-with-actual-validation-functions
+  (testing "Real validation functions - all pass"
+    (let [res (runner/run-checks [#(checks/string? "test" {:min 1})
+                                  #(checks/number? 42 {:type :int :min 0})
+                                  #(checks/collection? [1 2 3] {:type :vec :min 1})])]
+      (is (= true res))))
+  (testing "Real validation functions - one fails boolean"
+    (let [res (runner/run-checks [#(checks/string? "test" {:min 10})               ; false - too short
+                                  #(checks/number? 42 {:type :int :min 0})])]       ; would be true
+      (is (= false res))))
+  (testing "Real explain-style validation functions - all pass"
+    (let [res (runner/run-checks [#(checks/string-explain "test" {:min 1})
+                                  #(checks/number-explain 42 {:type :int :min 0})
+                                  #(checks/collection-explain [1 2 3] {:type :vec :min 1})])]
+      (is (= true res))))
+  (testing "Real explain-style validation functions - one fails"
+    (let [res (runner/run-checks [#(checks/string-explain "test" {:min 1})   ; valid
+                                  #(checks/string-explain "" {:min 1})       ; invalid - too short
+                                  #(checks/number-explain 42 {:type :int})])] ; would be valid
+      (is (= false (:valid? res)))
+      (is (= :string/too-short (:code res)))
+      (is (string? (:message res)))
+      (is (= "" (:value res))))))
+
+
+(deftest run-checks-fail-fast-behavior
+  (testing "Functions are not called after first failure"
+    (let [call-count (atom 0)
+          increment-fn #(do (swap! call-count inc) true)
+          fail-fn #(do (swap! call-count inc) false)
+          pass-fn #(do (swap! call-count inc) true)
+          res (runner/run-checks [increment-fn   ; called, returns true
+                                  fail-fn        ; called, returns false - stops here
+                                  pass-fn])]     ; NOT called due to fail-fast
+      (is (= false res))
+      (is (= 2 @call-count) "Should only call first 2 functions"))))

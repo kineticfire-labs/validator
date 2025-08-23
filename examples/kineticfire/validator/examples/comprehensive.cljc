@@ -180,9 +180,52 @@ Configuration validation pattern:")
     (println "  Config:" config)
     (println "  Validation:" (validate-config config))))
 
+(defn demo-run-checks-pattern []
+  (println "\n
+=== run-checks Pattern ===")
+  
+  (println "\n
+Simple validation with run-checks:")
+  
+  ;; Example: User registration validation
+  (let [user-data {:username "john_doe" :email "john@example.com" :age 25}]
+    (println "  User data:" user-data)
+    
+    ;; Using run-checks for streamlined validation
+    (let [validation-result (runner/run-checks 
+                              [#(checks/string-as-keyword-explain (:username user-data))
+                               #(checks/string-explain (:email user-data) {:min 5 :pat-or-pats-sub #"@"})
+                               #(checks/number-explain (:age user-data) {:type :int :min 13 :max 120})])]
+      (println "  All validations pass:" (= true validation-result)))
+    
+    ;; Show failure case
+    (let [bad-data {:username "" :email "bad" :age 5}
+          validation-result (runner/run-checks 
+                              [#(checks/string-as-keyword-explain (:username bad-data))
+                               #(checks/string-explain (:email bad-data) {:min 5 :pat-or-pats-sub #"@"})
+                               #(checks/number-explain (:age bad-data) {:type :int :min 13 :max 120})])]
+      (println "  Bad data:" bad-data)
+      (println "  First failure:" (select-keys validation-result [:valid? :code :message]))))
+  
+  ;; Mix of boolean and explain-style validations
+  (println "\n
+Mixed boolean and explain-style validations:")
+  (let [mixed-result (runner/run-checks 
+                       [#(checks/string? "test" {:min 1})                    ; boolean
+                        #(checks/number-explain 42 {:type :int})             ; explain-style
+                        #(checks/collection? [1 2 3] {:type :vec})])]         ; boolean
+    (println "  Mixed validations result:" mixed-result))
+  
+  ;; Empty checks demonstration
+  (println "\n
+Empty checks handling:")
+  (let [empty-result (runner/run-checks [])]
+    (println "  Empty checks result:" (select-keys empty-result [:valid? :code :message]))))
+
 
 #?(:clj
    (defn -main [& _args]
      (demo-validation-workflow)
      (demo-result-processing)
-     (demo-integration-patterns)))
+     (demo-integration-patterns)
+     (demo-run-checks-pattern)))
